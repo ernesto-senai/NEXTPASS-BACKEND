@@ -1,0 +1,393 @@
+// Modelo de dados do NextPass (Endpoints da API v2.0, Figura 2 e Quadro 2).
+// A URL do banco fica em prisma.config.ts (Prisma 7).
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ─── Enums (Quadro 2) ───────────────────────────────────────────────
+
+enum TipoUsuario {
+  ATLETA
+  OLHEIRO
+  RESPONSAVEL
+  ADMIN
+}
+
+enum StatusUsuario {
+  ATIVO
+  SUSPENSO
+}
+
+enum PePreferencial {
+  DESTRO
+  CANHOTO
+  AMBIDESTRO
+}
+
+enum Posicao {
+  GOL
+  ZAG
+  LD
+  LE
+  VOL
+  MEI
+  PD
+  PE
+  ATA
+}
+
+// Faixas etárias calculadas pelo ano de nascimento (RN-01).
+enum Categoria {
+  SUB_9
+  SUB_11
+  SUB_13
+  SUB_15
+  SUB_17
+  SUB_20
+  PROFISSIONAL
+}
+
+enum AtuacaoOlheiro {
+  CLUBE
+  INDEPENDENTE
+}
+
+enum StatusVerificacao {
+  PENDENTE
+  APROVADA
+  RECUSADA
+}
+
+enum StatusVinculo {
+  PENDENTE
+  CONFIRMADO
+}
+
+enum TipoAvaliacao {
+  PENEIRA
+  TESTE
+}
+
+enum StatusAvaliacao {
+  ABERTA
+  ESGOTADA
+  CANCELADA
+  ENCERRADA
+}
+
+enum StatusInscricao {
+  AGUARDANDO_RESPONSAVEL
+  CONFIRMADA
+  CANCELADA
+  RECUSADA
+  REMOVIDA
+}
+
+enum StatusConvite {
+  PENDENTE
+  ACEITO
+  RECUSADO
+  EXPIRADO
+}
+
+enum TipoNotificacao {
+  NOVO_CONVITE
+  COPIA_CONVITE
+  CONVITE_RESPONDIDO
+  APROVAR_INSCRICAO
+  NOVA_INSCRICAO
+  INSCRICAO_ATUALIZADA
+  AVALIACAO_ALTERADA
+  VERIFICACAO_ANALISADA
+}
+
+enum AlvoDenuncia {
+  PERFIL
+  VIDEO
+  CONVITE
+  AVALIACAO
+}
+
+enum StatusDenuncia {
+  ABERTA
+  EM_ANALISE
+  PROCEDENTE
+  IMPROCEDENTE
+}
+
+enum TipoToken {
+  REFRESH
+  REDEFINIR_SENHA
+}
+
+// ─── Usuários e perfis ──────────────────────────────────────────────
+
+model Usuario {
+  id              String        @id @default(uuid(7)) @db.Uuid
+  nome            String
+  email           String        @unique
+  senhaHash       String?
+  googleId        String?       @unique
+  fotoUrl         String?
+  tipo            TipoUsuario
+  status          StatusUsuario @default(ATIVO)
+  termosAceitosEm DateTime?
+  criadoEm        DateTime      @default(now())
+  atualizadoEm    DateTime      @updatedAt
+
+  atleta                  Atleta?
+  olheiro                 Olheiro?
+  vinculosComoResponsavel Vinculo[]
+  notificacoes            Notificacao[]
+  dispositivos            Dispositivo[]
+  tokens                  Token[]
+  denunciasFeitas         Denuncia[]    @relation("DenunciaAutor")
+  denunciasAnalisadas     Denuncia[]    @relation("DenunciaAnalisadaPor")
+  verificacoesAnalisadas  Verificacao[]
+}
+
+// Dados técnicos ficam opcionais até o atleta completar o perfil (RF-13, RN-02).
+model Atleta {
+  usuarioId      String          @id @db.Uuid
+  dataNascimento DateTime?       @db.Date
+  posicoes       Posicao[]
+  alturaCm       Int?
+  pesoKg         Int?
+  pePreferencial PePreferencial?
+  cidade         String?
+  uf             String?         @db.Char(2)
+  nacionalidade  String?
+
+  usuario    Usuario     @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+  videos     Video[]
+  vinculos   Vinculo[]
+  inscricoes Inscricao[]
+  convites   Convite[]
+
+  @@index([uf, cidade])
+  @@index([dataNascimento])
+}
+
+model Olheiro {
+  usuarioId  String         @id @db.Uuid
+  telefone   String
+  atuacao    AtuacaoOlheiro
+  clube      String?
+  verificado Boolean        @default(false)
+
+  usuario       Usuario        @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+  verificacoes  Verificacao[]
+  avaliacoes    Avaliacao[]
+  convites      Convite[]
+  visualizacoes Visualizacao[]
+}
+
+// Documentos ficam em armazenamento privado (RNF-09); aqui só a referência.
+model Verificacao {
+  id             String            @id @default(uuid(7)) @db.Uuid
+  olheiroId      String            @db.Uuid
+  documentoUrl   String
+  comprovanteUrl String?
+  status         StatusVerificacao @default(PENDENTE)
+  motivoRecusa   String?
+  analisadaPorId String?           @db.Uuid
+  analisadaEm    DateTime?
+  criadoEm       DateTime          @default(now())
+  atualizadoEm   DateTime          @updatedAt
+
+  olheiro      Olheiro  @relation(fields: [olheiroId], references: [usuarioId], onDelete: Cascade)
+  analisadaPor Usuario? @relation(fields: [analisadaPorId], references: [id], onDelete: SetNull)
+
+  @@index([status])
+}
+
+// responsavelId fica nulo até o responsável criar a conta pelo link do e-mail.
+model Vinculo {
+  id               String        @id @default(uuid(7)) @db.Uuid
+  atletaId         String        @db.Uuid
+  responsavelId    String?       @db.Uuid
+  emailResponsavel String
+  status           StatusVinculo @default(PENDENTE)
+  tokenHash        String?       @unique
+  tokenExpiraEm    DateTime?
+  criadoEm         DateTime      @default(now())
+  atualizadoEm     DateTime      @updatedAt
+
+  atleta      Atleta   @relation(fields: [atletaId], references: [usuarioId], onDelete: Cascade)
+  responsavel Usuario? @relation(fields: [responsavelId], references: [id], onDelete: Cascade)
+
+  @@unique([atletaId, emailResponsavel])
+}
+
+// ─── Lances ─────────────────────────────────────────────────────────
+
+model Video {
+  id           String   @id @default(uuid(7)) @db.Uuid
+  atletaId     String   @db.Uuid
+  url          String
+  duracaoSeg   Int
+  legenda      String?
+  localizacao  String?
+  destaque     Boolean  @default(false)
+  criadoEm     DateTime @default(now())
+  atualizadoEm DateTime @updatedAt
+
+  atleta        Atleta         @relation(fields: [atletaId], references: [usuarioId], onDelete: Cascade)
+  visualizacoes Visualizacao[]
+
+  @@index([atletaId])
+  @@index([criadoEm])
+}
+
+model Visualizacao {
+  id        String   @id @default(uuid(7)) @db.Uuid
+  videoId   String   @db.Uuid
+  olheiroId String   @db.Uuid
+  criadoEm  DateTime @default(now())
+
+  video   Video   @relation(fields: [videoId], references: [id], onDelete: Cascade)
+  olheiro Olheiro @relation(fields: [olheiroId], references: [usuarioId], onDelete: Cascade)
+
+  @@index([videoId])
+}
+
+// ─── Avaliações, inscrições e convites ──────────────────────────────
+
+// vagasOcupadas é um contador para ocupar a última vaga com um UPDATE
+// condicional, sem corrida entre duas inscrições simultâneas (RN-06).
+// O endereço completo só é exibido após a confirmação (RN-08).
+model Avaliacao {
+  id            String          @id @default(uuid(7)) @db.Uuid
+  olheiroId     String          @db.Uuid
+  nome          String
+  tipo          TipoAvaliacao
+  categoria     Categoria
+  posicoes      Posicao[]
+  requisitos    String
+  taxaCentavos  Int             @default(0)
+  vagas         Int
+  vagasOcupadas Int             @default(0)
+  dataHora      DateTime
+  local         String
+  endereco      String
+  cidade        String
+  uf            String          @db.Char(2)
+  status        StatusAvaliacao @default(ABERTA)
+  criadoEm      DateTime        @default(now())
+  atualizadoEm  DateTime        @updatedAt
+
+  olheiro    Olheiro     @relation(fields: [olheiroId], references: [usuarioId], onDelete: Cascade)
+  inscricoes Inscricao[]
+  convites   Convite[]
+
+  @@index([status, dataHora])
+  @@index([uf, cidade])
+  @@index([olheiroId])
+}
+
+// Uma linha por atleta e avaliação: reinscrever muda o status em vez de
+// criar outra linha, e o banco garante a RN-07.
+model Inscricao {
+  id           String          @id @default(uuid(7)) @db.Uuid
+  avaliacaoId  String          @db.Uuid
+  atletaId     String          @db.Uuid
+  conviteId    String?         @unique @db.Uuid
+  status       StatusInscricao
+  criadoEm     DateTime        @default(now())
+  atualizadoEm DateTime        @updatedAt
+
+  avaliacao Avaliacao @relation(fields: [avaliacaoId], references: [id], onDelete: Cascade)
+  atleta    Atleta    @relation(fields: [atletaId], references: [usuarioId], onDelete: Cascade)
+  convite   Convite?  @relation(fields: [conviteId], references: [id], onDelete: SetNull)
+
+  @@unique([avaliacaoId, atletaId])
+  @@index([atletaId, status])
+}
+
+model Convite {
+  id           String        @id @default(uuid(7)) @db.Uuid
+  olheiroId    String        @db.Uuid
+  atletaId     String        @db.Uuid
+  avaliacaoId  String        @db.Uuid
+  mensagem     String        @db.VarChar(300)
+  status       StatusConvite @default(PENDENTE)
+  respondidoEm DateTime?
+  criadoEm     DateTime      @default(now())
+  atualizadoEm DateTime      @updatedAt
+
+  olheiro   Olheiro    @relation(fields: [olheiroId], references: [usuarioId], onDelete: Cascade)
+  atleta    Atleta     @relation(fields: [atletaId], references: [usuarioId], onDelete: Cascade)
+  avaliacao Avaliacao  @relation(fields: [avaliacaoId], references: [id], onDelete: Cascade)
+  inscricao Inscricao?
+
+  @@index([atletaId, status])
+  @@index([avaliacaoId, status])
+}
+
+// ─── Notificações, denúncias e sessão ───────────────────────────────
+
+model Notificacao {
+  id        String          @id @default(uuid(7)) @db.Uuid
+  usuarioId String          @db.Uuid
+  tipo      TipoNotificacao
+  texto     String
+  dados     Json?
+  lida      Boolean         @default(false)
+  criadoEm  DateTime        @default(now())
+
+  usuario Usuario @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+
+  @@index([usuarioId, lida])
+}
+
+model Dispositivo {
+  id           String   @id @default(uuid(7)) @db.Uuid
+  usuarioId    String   @db.Uuid
+  tokenPush    String   @unique
+  criadoEm     DateTime @default(now())
+  atualizadoEm DateTime @updatedAt
+
+  usuario Usuario @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+}
+
+// alvoId aponta para o registro denunciado conforme alvoTipo (sem FK).
+model Denuncia {
+  id             String         @id @default(uuid(7)) @db.Uuid
+  autorId        String         @db.Uuid
+  alvoTipo       AlvoDenuncia
+  alvoId         String         @db.Uuid
+  motivo         String
+  status         StatusDenuncia @default(ABERTA)
+  decisao        String?
+  analisadaPorId String?        @db.Uuid
+  criadoEm       DateTime       @default(now())
+  atualizadoEm   DateTime       @updatedAt
+
+  autor        Usuario  @relation("DenunciaAutor", fields: [autorId], references: [id], onDelete: Cascade)
+  analisadaPor Usuario? @relation("DenunciaAnalisadaPor", fields: [analisadaPorId], references: [id], onDelete: SetNull)
+
+  @@index([status])
+  @@index([alvoTipo, alvoId])
+}
+
+// Guarda só o hash dos tokens de atualização e de redefinição de senha,
+// para o logout invalidar a sessão do aparelho (RNF-07).
+model Token {
+  id        String    @id @default(uuid(7)) @db.Uuid
+  usuarioId String    @db.Uuid
+  tipo      TipoToken
+  tokenHash String    @unique
+  expiraEm  DateTime
+  usadoEm   DateTime?
+  criadoEm  DateTime  @default(now())
+
+  usuario Usuario @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+
+  @@index([usuarioId, tipo])
+}
