@@ -1,0 +1,47 @@
+# Desenvolvimento: `docker compose up -d db` e rode a API com `npm run dev`.
+# Stack completa (banco + migrações + API): `docker compose --profile full up --build`.
+
+services:
+  db:
+    image: postgres:18-alpine
+    environment:
+      POSTGRES_USER: nextpass
+      POSTGRES_PASSWORD: nextpass
+      POSTGRES_DB: nextpass
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U nextpass -d nextpass"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  migrate:
+    build:
+      context: .
+      target: build
+    command: npx prisma migrate deploy
+    environment:
+      DATABASE_URL: postgresql://nextpass:nextpass@db:5432/nextpass?schema=public
+    depends_on:
+      db:
+        condition: service_healthy
+    profiles: ["full"]
+
+  api:
+    build: .
+    env_file: .env
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: postgresql://nextpass:nextpass@db:5432/nextpass?schema=public
+    ports:
+      - "3333:3333"
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    profiles: ["full"]
+
+volumes:
+  pgdata:
