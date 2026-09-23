@@ -1,4 +1,4 @@
-import type { RequestHandler } from "express";
+import type { Request, RequestHandler } from "express";
 import jwt from "jsonwebtoken";
 import { env } from "../../../config/env.ts";
 import type { TipoUsuario } from "../../../generated/prisma/enums.ts";
@@ -25,3 +25,9 @@ export const authenticate: RequestHandler = (req, _res, next) => {
     throw new AppError("TOKEN_INVALIDO", "Sessão expirada. Entre novamente.");
   }
 };
+
+// Usuário logado nas rotas protegidas por authenticate.
+export function usuarioDaRequisicao(req: Request) {
+  if (!req.usuario) throw new AppError("NAO_AUTENTICADO", "Faça login para continuar.");
+  return req.usuario;
+}

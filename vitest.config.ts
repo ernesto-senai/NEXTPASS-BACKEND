@@ -7,7 +7,6 @@ export default defineConfig({
       NODE_ENV: "test",
       DATABASE_URL: "postgresql://nextpass:nextpass@localhost:5432/nextpass_test",
       JWT_ACCESS_SECRET: "segredo-de-acesso-apenas-para-testes-000",
-      JWT_REFRESH_SECRET: "segredo-de-refresh-apenas-para-testes-000",
     },
   },
 });

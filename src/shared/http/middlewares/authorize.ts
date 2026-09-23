@@ -1,7 +1,6 @@
 import type { RequestHandler } from "express";
 import type { TipoUsuario } from "../../../generated/prisma/enums.ts";
 import { AppError } from "../../errors/app-error.ts";
-import { prisma } from "../../infra/database/prisma.ts";
 
 // Libera a rota só para os perfis informados. Use depois de authenticate.
 export function authorize(...tipos: TipoUsuario[]): RequestHandler {
@@ -13,20 +12,19 @@ export function authorize(...tipos: TipoUsuario[]): RequestHandler {
   };
 }
 
-// RN-04: olheiro só busca atletas, cria avaliações e envia convites depois de
-// verificado. Consulta o banco a cada chamada para a aprovação valer na hora.
-export const requireOlheiroVerificado: RequestHandler = async (req, _res, next) => {
-  if (req.usuario?.tipo !== "OLHEIRO") {
-    throw new AppError("ACESSO_NEGADO", "Recurso exclusivo para olheiros.");
-  }
-
-  const olheiro = await prisma.olheiro.findUnique({
-    where: { usuarioId: req.usuario.id },
-    select: { verificado: true },
-  });
-
-  if (!olheiro?.verificado) {
-    throw new AppError("OLHEIRO_NAO_VERIFICADO", "Aguarde a aprovação da sua verificação.");
-  }
-  next();
-};
+// RN-04: olheiro só assiste lances, busca atletas, cria avaliações e envia
+// convites depois de verificado. A consulta vai ao banco a cada chamada para a
+// aprovação valer na hora; nos testes, ela é trocada por uma versão em memória.
+export function exigirOlheiroVerificado(
+  estaVerificado: (usuarioId: string) => Promise<boolean>,
+): RequestHandler {
+  return async (req, _res, next) => {
+    if (req.usuario?.tipo !== "OLHEIRO") {
+      throw new AppError("ACESSO_NEGADO", "Recurso exclusivo para olheiros.");
+    }
+    if (!(await estaVerificado(req.usuario.id))) {
+      throw new AppError("OLHEIRO_NAO_VERIFICADO", "Aguarde a aprovação da sua verificação.");
+    }
+    next();
+  };
+}

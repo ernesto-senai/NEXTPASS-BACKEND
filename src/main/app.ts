@@ -2,11 +2,16 @@ import cors from "cors";
 import express from "express";
 import helmet from "helmet";
 import { pinoHttp } from "pino-http";
+import { z } from "zod";
 import { env } from "../config/env.ts";
 import { errorHandler, notFoundHandler } from "../shared/http/middlewares/error-handler.ts";
-import { routes } from "./routes.ts";
+import { criarDependencias, type Dependencias } from "./dependencias.ts";
+import { criarRotas } from "./routes.ts";
 
-export function createApp() {
+// Mensagens de validação padrão do Zod em português.
+z.config(z.locales.pt());
+
+export function createApp(deps: Dependencias = criarDependencias()) {
   const app = express();
 
   app.use(helmet());
@@ -23,7 +28,7 @@ export function createApp() {
     res.json({ status: "ok" });
   });
 
-  app.use("/api/v1", routes);
+  app.use("/api/v1", criarRotas(deps));
 
   app.use(notFoundHandler);
   app.use(errorHandler);
