@@ -98,6 +98,46 @@ describe("GET /avaliacoes (RF-18)", () => {
   });
 });
 
+describe("GET /avaliacoes com busca e filtros (RF-23, RF-24)", () => {
+  const pesquisar = (query: string) =>
+    request(app).get(`/api/v1/avaliacoes?${query}`).set("Authorization", `Bearer ${atleta.token}`);
+
+  it("combina busca por clube, categoria, vagas e ordem por preço", async () => {
+    avaliacao({ nome: "Peneira cara", clube: "Palmeiras", taxaCentavos: 5000 });
+    avaliacao({ nome: "Peneira gratuita", clube: "Palmeiras", taxaCentavos: 0 });
+    avaliacao({ nome: "Lotada", clube: "Palmeiras", status: "ESGOTADA" });
+    avaliacao({ nome: "Outra categoria", clube: "Palmeiras", categoria: "SUB_15" });
+    avaliacao({ nome: "Outro clube", clube: "Santos" });
+
+    const resposta = await pesquisar(
+      "busca=palmeiras&categoria=SUB_17&comVagas=true&ordenar=menorPreco",
+    );
+
+    expect(resposta.status).toBe(200);
+    expect(resposta.body.dados.map((a: AvaliacaoResumo) => a.nome)).toEqual([
+      "Peneira gratuita",
+      "Peneira cara",
+    ]);
+  });
+
+  it("filtra por posições e preço máximo em reais", async () => {
+    avaliacao({ nome: "Para goleiros", posicoes: ["GOL"], taxaCentavos: 2000 });
+    avaliacao({ nome: "Para meias", posicoes: ["MEI"], taxaCentavos: 2000 });
+    avaliacao({ nome: "Goleiros, mais cara", posicoes: ["GOL"], taxaCentavos: 9000 });
+
+    const resposta = await pesquisar("posicoes=GOL,ZAG&precoMax=50");
+
+    expect(resposta.body.dados.map((a: AvaliacaoResumo) => a.nome)).toEqual(["Para goleiros"]);
+  });
+
+  it("recusa filtro inválido", async () => {
+    const resposta = await pesquisar("categoria=SUB_99");
+
+    expect(resposta.status).toBe(400);
+    expect(resposta.body.erro.campos).toHaveProperty("categoria");
+  });
+});
+
 describe("GET /perfil/inscricoes (RF-19)", () => {
   it("separa as inscrições ativas das avaliações já participadas", async () => {
     const futura = avaliacao({ nome: "Futura" });

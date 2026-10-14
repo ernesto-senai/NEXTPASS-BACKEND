@@ -141,7 +141,7 @@ async function main() {
     vagasOcupadas: 12,
     local: "Centro de Treinamento Barra Funda",
   });
-  await avaliacao({
+  const sub20 = await avaliacao({
     olheiroId: carla.id,
     nome: "Peneira São Paulo Sub-20",
     categoria: "SUB_20",
@@ -151,7 +151,7 @@ async function main() {
     status: "ESGOTADA",
     local: "Centro de Treinamento Barra Funda",
   });
-  await avaliacao({
+  const zonaLeste = await avaliacao({
     olheiroId: joao.id,
     nome: "Peneira aberta Zona Leste Sub-17",
     categoria: "SUB_17",
@@ -161,7 +161,7 @@ async function main() {
     taxaCentavos: 0,
     local: "Campo do Parque do Carmo",
   });
-  await avaliacao({
+  const tecnica = await avaliacao({
     olheiroId: fabrizio.id,
     nome: "Avaliação técnica Sub-17",
     tipo: "TESTE",
@@ -188,6 +188,76 @@ async function main() {
     data: [
       { avaliacaoId: palmeiras.id, atletaId: silas.id, status: "AGUARDANDO_RESPONSAVEL" },
       { avaliacaoId: passada.id, atletaId: silas.id, status: "CONFIRMADA" },
+    ],
+  });
+
+  // Responsável do Silas, com vínculo confirmado: aprova as inscrições dele (RN-03).
+  const responsavel = await prisma.usuario.create({
+    data: { ...conta("responsavel", "Ana Rodrigues"), tipo: "RESPONSAVEL" },
+  });
+  await prisma.vinculo.create({
+    data: {
+      atletaId: silas.id,
+      responsavelId: responsavel.id,
+      emailResponsavel: responsavel.email,
+      status: "CONFIRMADO",
+    },
+  });
+
+  // Caixa de convites do Silas (RF-26): dois pendentes e um de avaliação que
+  // lotou, já expirado (RN-12).
+  await prisma.convite.createMany({
+    data: [
+      {
+        olheiroId: fabrizio.id,
+        atletaId: silas.id,
+        avaliacaoId: tecnica.id,
+        mensagem:
+          "Olá, Silas! Gostamos dos seus lances de ponta esquerda e queremos te ver numa avaliação técnica.",
+        criadoEm: emDias(-1, 10),
+      },
+      {
+        olheiroId: joao.id,
+        atletaId: silas.id,
+        avaliacaoId: zonaLeste.id,
+        mensagem:
+          "Vi sua jogada individual pela ponta. Venha mostrar seu futebol na nossa peneira!",
+        criadoEm: emDias(-2, 16),
+      },
+      {
+        olheiroId: carla.id,
+        atletaId: silas.id,
+        avaliacaoId: sub20.id,
+        mensagem: "Temos uma peneira Sub-20 e achamos que você pode se destacar.",
+        status: "EXPIRADO",
+        criadoEm: emDias(-4, 9),
+      },
+    ],
+  });
+
+  // Avisos do olheiro Fabrizio (RF-47): respostas a convites e novas inscrições.
+  const horasAtras = (horas: number) => new Date(Date.now() - horas * 60 * 60 * 1000);
+  await prisma.notificacao.createMany({
+    data: [
+      {
+        usuarioId: fabrizio.id,
+        tipo: "CONVITE_RESPONDIDO",
+        texto: "Matheus Lima recusou o convite para Peneira Palmeiras Sub-17.",
+        criadoEm: horasAtras(3),
+      },
+      {
+        usuarioId: fabrizio.id,
+        tipo: "NOVA_INSCRICAO",
+        texto: "Leandro Sousa se inscreveu em Peneira Palmeiras Sub-17.",
+        criadoEm: horasAtras(26),
+      },
+      {
+        usuarioId: fabrizio.id,
+        tipo: "CONVITE_RESPONDIDO",
+        texto: "Leandro Sousa aceitou o convite para Avaliação técnica Sub-17.",
+        lida: true,
+        criadoEm: horasAtras(50),
+      },
     ],
   });
 
@@ -220,6 +290,7 @@ async function main() {
   console.log("Dados de demonstração prontos. Senha de todas as contas:", SENHA);
   console.log(`  Atleta:  atleta${DOMINIO}`);
   console.log(`  Olheiro: olheiro${DOMINIO} (verificado)`);
+  console.log(`  Responsável do atleta: responsavel${DOMINIO}`);
 }
 
 try {

@@ -1,9 +1,12 @@
 import type { Prisma, PrismaClient } from "../../../generated/prisma/client.ts";
 import { intervalo } from "../../../shared/domain/pagina.ts";
+import { STATUS_ATIVOS } from "../../inscricoes/domain/inscricao.ts";
 import {
   type AvaliacaoRepository,
   type AvaliacaoResumo,
   clubeVisivel,
+  type FiltroAvaliacoes,
+  type OrdemAvaliacoes,
 } from "../domain/avaliacao.ts";
 
 // Campos do card; também usados pelo módulo de inscrições.
@@ -42,21 +45,99 @@ export function paraResumo({ olheiro, ...avaliacao }: AvaliacaoSelecionada): Ava
   };
 }
 
+const DIA_MS = 24 * 60 * 60 * 1000;
+
+const ordenacao = {
+  proximas: [{ dataHora: "asc" }],
+  recentes: [{ criadoEm: "desc" }],
+  menorPreco: [{ taxaCentavos: "asc" }, { dataHora: "asc" }],
+} satisfies Record<OrdemAvaliacoes, Prisma.AvaliacaoOrderByWithRelationInput[]>;
+
+function condicoes(filtro: FiltroAvaliacoes, agora: Date): Prisma.AvaliacaoWhereInput {
+  const { busca, categoria, tipo, cidade, posicoes, precoMaxCentavos, dias } = filtro;
+  const contem = (texto: string) => ({ contains: texto, mode: "insensitive" as const });
+
+  return {
+    // RN-06: avaliação esgotada aparece, a não ser que o atleta peça só as com vagas.
+    status: filtro.somenteComVagas ? "ABERTA" : { in: ["ABERTA", "ESGOTADA"] },
+    dataHora: { gt: agora, ...(dias ? { lte: new Date(agora.getTime() + dias * DIA_MS) } : {}) },
+    // Avaliações de contas suspensas pela moderação somem do feed.
+    olheiro: { usuario: { status: "ATIVO" } },
+    ...(categoria ? { categoria } : {}),
+    ...(tipo ? { tipo } : {}),
+    ...(cidade ? { cidade: contem(cidade) } : {}),
+    ...(posicoes?.length ? { posicoes: { hasSome: posicoes } } : {}),
+    ...(precoMaxCentavos !== undefined ? { taxaCentavos: { lte: precoMaxCentavos } } : {}),
+    // RF-23: pelo nome da avaliação ou do clube.
+    ...(busca ? { OR: [{ nome: contem(busca) }, { olheiro: { clube: contem(busca) } }] } : {}),
+  };
+}
+
 export function criarAvaliacaoRepositoryPrisma(prisma: PrismaClient): AvaliacaoRepository {
   return {
-    listarFuturas: async (paginacao, agora) => {
-      const where = {
-        status: { in: ["ABERTA", "ESGOTADA"] },
-        dataHora: { gt: agora },
-        // Avaliações de contas suspensas pela moderação somem do feed.
-        olheiro: { usuario: { status: "ATIVO" } },
-      } satisfies Prisma.AvaliacaoWhereInput;
+    criar: async (olheiroId, dados) =>
+      paraResumo(
+        await prisma.avaliacao.create({ data: { ...dados, olheiroId }, select: selecaoResumo }),
+      ),
+
+    listarDoOlheiro: async (olheiroId, situacao, paginacao, agora) => {
+      const where =
+        situacao === "proximas"
+          ? ({
+              olheiroId,
+              status: { in: ["ABERTA", "ESGOTADA"] },
+              dataHora: { gt: agora },
+            } satisfies Prisma.AvaliacaoWhereInput)
+          : ({
+              olheiroId,
+              OR: [{ dataHora: { lte: agora } }, { status: { in: ["CANCELADA", "ENCERRADA"] } }],
+            } satisfies Prisma.AvaliacaoWhereInput);
 
       const [linhas, total] = await prisma.$transaction([
         prisma.avaliacao.findMany({
           where,
           select: selecaoResumo,
-          orderBy: { dataHora: "asc" },
+          orderBy: { dataHora: situacao === "proximas" ? "asc" : "desc" },
+          ...intervalo(paginacao),
+        }),
+        prisma.avaliacao.count({ where }),
+      ]);
+
+      return { dados: linhas.map(paraResumo), total };
+    },
+
+    buscarParaDono: (id) =>
+      prisma.avaliacao.findUnique({
+        where: { id },
+        select: { olheiroId: true, nome: true, status: true, dataHora: true },
+      }),
+
+    cancelar: (id) =>
+      prisma.$transaction(async (tx) => {
+        const ativas = { avaliacaoId: id, status: { in: [...STATUS_ATIVOS] } };
+        const inscritos = await tx.inscricao.findMany({
+          where: ativas,
+          select: { atletaId: true },
+        });
+
+        await tx.avaliacao.update({ where: { id }, data: { status: "CANCELADA" } });
+        await tx.inscricao.updateMany({ where: ativas, data: { status: "CANCELADA" } });
+        await tx.convite.updateMany({
+          where: { avaliacaoId: id, status: "PENDENTE" },
+          data: { status: "EXPIRADO" },
+        });
+
+        return inscritos.map((inscricao) => inscricao.atletaId);
+      }),
+
+    listarFuturas: async (filtro, paginacao, agora) => {
+      const where = condicoes(filtro, agora);
+
+      const [linhas, total] = await prisma.$transaction([
+        prisma.avaliacao.findMany({
+          where,
+          select: selecaoResumo,
+          orderBy: ordenacao[filtro.ordem],
           ...intervalo(paginacao),
         }),
         prisma.avaliacao.count({ where }),
