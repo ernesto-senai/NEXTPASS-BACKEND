@@ -1,4 +1,4 @@
-import type { StatusInscricao } from "../../../generated/prisma/enums.ts";
+import type { StatusInscricao, TipoUsuario } from "../../../generated/prisma/enums.ts";
 import type { Pagina, Paginacao } from "../../../shared/domain/pagina.ts";
 import { AppError } from "../../../shared/errors/app-error.ts";
 import type { InscreverAtleta } from "../../inscricoes/application/inscrever-atleta.ts";
@@ -12,7 +12,7 @@ import {
 export type RespostaConvite = "ACEITO" | "RECUSADO";
 
 export type ListarConvitesRecebidos = (
-  atletaId: string,
+  usuario: { id: string; tipo: TipoUsuario },
   paginacao: Paginacao,
 ) => Promise<Pagina<ConviteRecebido>>;
 
@@ -27,14 +27,18 @@ export type ResponderConvite = (
 }>;
 
 // RF-26: caixa de convites do atleta, já com os expirados marcados (RN-12).
+// RF-49: o responsável vê os convites dos atletas vinculados.
 export function criarListarConvitesRecebidos(deps: {
   convites: ConviteRepository;
   agora?: () => Date;
 }): ListarConvitesRecebidos {
   const agora = deps.agora ?? (() => new Date());
 
-  return async (atletaId, paginacao) => {
-    const { dados, total } = await deps.convites.listarDoAtleta(atletaId, paginacao);
+  return async (usuario, paginacao) => {
+    const { dados, total } = await deps.convites.listarRecebidos(
+      usuario.tipo === "RESPONSAVEL" ? { responsavelId: usuario.id } : { atletaId: usuario.id },
+      paginacao,
+    );
     return {
       dados: dados.map((convite) => ({
         ...convite,

@@ -1,4 +1,4 @@
-import type { PrismaClient } from "../../../generated/prisma/client.ts";
+import type { Prisma, PrismaClient } from "../../../generated/prisma/client.ts";
 import { intervalo } from "../../../shared/domain/pagina.ts";
 import { paraResumo, selecaoResumo } from "../../avaliacoes/infra/prisma-avaliacao-repository.ts";
 import { STATUS_ATIVOS } from "../../inscricoes/domain/inscricao.ts";
@@ -6,8 +6,15 @@ import type { ConviteRepository } from "../domain/convite.ts";
 
 export function criarConviteRepositoryPrisma(prisma: PrismaClient): ConviteRepository {
   return {
-    listarDoAtleta: async (atletaId, paginacao) => {
-      const where = { atletaId };
+    listarRecebidos: async (destino, paginacao) => {
+      const where: Prisma.ConviteWhereInput =
+        "atletaId" in destino
+          ? { atletaId: destino.atletaId }
+          : {
+              atleta: {
+                vinculos: { some: { responsavelId: destino.responsavelId, status: "CONFIRMADO" } },
+              },
+            };
 
       const [linhas, total] = await prisma.$transaction([
         prisma.convite.findMany({
@@ -19,6 +26,7 @@ export function criarConviteRepositoryPrisma(prisma: PrismaClient): ConviteRepos
             criadoEm: true,
             avaliacao: { select: selecaoResumo },
             inscricao: { select: { id: true, status: true } },
+            atleta: { select: { usuarioId: true, usuario: { select: { nome: true } } } },
           },
           orderBy: { criadoEm: "desc" },
           ...intervalo(paginacao),
@@ -27,9 +35,10 @@ export function criarConviteRepositoryPrisma(prisma: PrismaClient): ConviteRepos
       ]);
 
       return {
-        dados: linhas.map(({ avaliacao, ...convite }) => ({
+        dados: linhas.map(({ avaliacao, atleta, ...convite }) => ({
           ...convite,
           avaliacao: paraResumo(avaliacao),
+          atleta: { id: atleta.usuarioId, nome: atleta.usuario.nome },
         })),
         total,
       };

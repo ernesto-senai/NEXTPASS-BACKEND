@@ -53,6 +53,16 @@ export function criarInscreverAtleta(deps: {
           dados: { inscricaoId: resultado.id },
         })),
       );
+    } else if (!conviteId) {
+      // RF-47: pelo convite, o olheiro já recebe "aceitou o convite".
+      await deps.notificacoes.criar([
+        {
+          usuarioId: resultado.avaliacao.olheiroId,
+          tipo: "NOVA_INSCRICAO",
+          texto: `${atleta.nome} se inscreveu em ${resultado.avaliacao.nome}.`,
+          dados: { inscricaoId: resultado.id },
+        },
+      ]);
     }
     return resultado;
   };
