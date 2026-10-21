@@ -24,4 +24,6 @@ export interface UsuarioRepository {
   // Devolve null se o e-mail foi cadastrado por outro pedido no meio do caminho.
   criarAtleta(dados: NovoUsuario): Promise<UsuarioCriado | null>;
   criarOlheiro(dados: NovoOlheiro): Promise<UsuarioCriado | null>;
+  // RF-48: a conta do responsável nasce do link enviado ao e-mail dele.
+  criarResponsavel(dados: NovoUsuario): Promise<UsuarioCriado | null>;
 }

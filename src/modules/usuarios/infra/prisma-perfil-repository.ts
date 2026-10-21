@@ -45,6 +45,40 @@ export function criarPerfilRepositoryPrisma(prisma: PrismaClient): PerfilReposit
       return { ...dados, atleta: { ...tecnicos, responsavel: situacaoDoVinculo(vinculos) } };
     },
 
+    atualizarFoto: async (usuarioId, fotoUrl) =>
+      prisma.$transaction(async (tx) => {
+        const { fotoUrl: anterior } = await tx.usuario.findUniqueOrThrow({
+          where: { id: usuarioId },
+          select: { fotoUrl: true },
+        });
+        await tx.usuario.update({ where: { id: usuarioId }, data: { fotoUrl } });
+        return anterior;
+      }),
+
+    excluirConta: (usuarioId) =>
+      prisma.$transaction(async (tx) => {
+        const usuario = await tx.usuario.findUniqueOrThrow({
+          where: { id: usuarioId },
+          select: {
+            fotoUrl: true,
+            atleta: { select: { videos: { select: { url: true } } } },
+            olheiro: {
+              select: { verificacoes: { select: { documentoUrl: true, comprovanteUrl: true } } },
+            },
+          },
+        });
+        // As relações com onDelete: Cascade levam perfil, lances, avaliações,
+        // inscrições, convites, vínculos, notificações e sessões junto.
+        await tx.usuario.delete({ where: { id: usuarioId } });
+
+        return [
+          usuario.fotoUrl,
+          ...(usuario.atleta?.videos.map((video) => video.url) ?? []),
+          ...(usuario.olheiro?.verificacoes.flatMap((v) => [v.documentoUrl, v.comprovanteUrl]) ??
+            []),
+        ].filter((url): url is string => !!url);
+      }),
+
     atualizarAtleta: async (usuarioId, { nome, ...dados }) => {
       await prisma.usuario.update({
         where: { id: usuarioId },
