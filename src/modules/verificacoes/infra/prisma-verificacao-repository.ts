@@ -1,4 +1,5 @@
 import type { PrismaClient } from "../../../generated/prisma/client.ts";
+import { intervalo } from "../../../shared/domain/pagina.ts";
 import type { VerificacaoRepository } from "../domain/verificacao.ts";
 
 export function criarVerificacaoRepositoryPrisma(prisma: PrismaClient): VerificacaoRepository {
@@ -23,6 +24,74 @@ export function criarVerificacaoRepositoryPrisma(prisma: PrismaClient): Verifica
         status: ultima?.status ?? null,
         motivoRecusa: ultima?.motivoRecusa ?? null,
       };
+    },
+
+    atuacaoDoOlheiro: async (olheiroId) =>
+      (
+        await prisma.olheiro.findUnique({
+          where: { usuarioId: olheiroId },
+          select: { atuacao: true },
+        })
+      )?.atuacao ?? null,
+
+    criar: async (dados) => {
+      await prisma.verificacao.create({ data: dados });
+    },
+
+    listarParaAnalise: async (status, paginacao) => {
+      const where = { status };
+      const [linhas, total] = await prisma.$transaction([
+        prisma.verificacao.findMany({
+          where,
+          select: {
+            id: true,
+            status: true,
+            criadoEm: true,
+            documentoUrl: true,
+            comprovanteUrl: true,
+            olheiro: {
+              select: {
+                usuarioId: true,
+                atuacao: true,
+                clube: true,
+                usuario: { select: { nome: true, email: true } },
+              },
+            },
+          },
+          // A fila é atendida por ordem de chegada.
+          orderBy: { criadoEm: "asc" },
+          ...intervalo(paginacao),
+        }),
+        prisma.verificacao.count({ where }),
+      ]);
+
+      return {
+        dados: linhas.map(({ olheiro: { usuarioId, usuario, ...olheiro }, ...verificacao }) => ({
+          ...verificacao,
+          olheiro: { ...olheiro, id: usuarioId, nome: usuario.nome, email: usuario.email },
+        })),
+        total,
+      };
+    },
+
+    buscar: (id) =>
+      prisma.verificacao.findUnique({
+        where: { id },
+        select: { id: true, olheiroId: true, status: true },
+      }),
+
+    analisar: async (id, { status, motivoRecusa, adminId, agora }) => {
+      await prisma.$transaction(async (tx) => {
+        const { olheiroId } = await tx.verificacao.update({
+          where: { id },
+          data: { status, motivoRecusa, analisadaPorId: adminId, analisadaEm: agora },
+          select: { olheiroId: true },
+        });
+        await tx.olheiro.update({
+          where: { usuarioId: olheiroId },
+          data: { verificado: status === "APROVADA" },
+        });
+      });
     },
   };
 }

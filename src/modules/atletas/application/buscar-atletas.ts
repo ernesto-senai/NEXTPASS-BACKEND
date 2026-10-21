@@ -1,10 +1,10 @@
-import { calcularCategoria, calcularIdade } from "../../../shared/domain/idade-categoria.ts";
 import type { Pagina, Paginacao } from "../../../shared/domain/pagina.ts";
 import {
   type AtletaRepository,
   type AtletaResumo,
   type FiltroAtletas,
   intervaloDeNascimento,
+  paraAtletaResumo,
 } from "../domain/atleta.ts";
 
 export type BuscarAtletas = (
@@ -27,11 +27,7 @@ export function criarBuscarAtletas(deps: {
     );
 
     return {
-      dados: dados.map(({ dataNascimento, ...atleta }) => ({
-        ...atleta,
-        idade: calcularIdade(dataNascimento, hoje),
-        categoria: calcularCategoria(dataNascimento, hoje.getUTCFullYear()),
-      })),
+      dados: dados.map((atleta) => paraAtletaResumo(atleta, hoje)),
       total,
       pagina: paginacao.pagina,
     };

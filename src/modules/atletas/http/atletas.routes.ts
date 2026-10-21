@@ -4,6 +4,7 @@ import { Categoria, PePreferencial, Posicao } from "../../../generated/prisma/en
 import { authenticate } from "../../../shared/http/middlewares/authenticate.ts";
 import { paginacaoSchema } from "../../../shared/http/pagination.ts";
 import type { BuscarAtletas } from "../application/buscar-atletas.ts";
+import type { ConsultarAtleta } from "../application/consultar-atleta.ts";
 
 // Atletas (Endpoints v2.0, seção 5.5)
 // GET    /atletas                 Olheiro verificado  RF-35, RF-36, RF-37 (só perfis completos, RN-02)
@@ -11,7 +12,10 @@ import type { BuscarAtletas } from "../application/buscar-atletas.ts";
 
 export interface AtletasCasosDeUso {
   buscarAtletas: BuscarAtletas;
+  consultarAtleta: ConsultarAtleta;
 }
+
+const idSchema = z.object({ id: z.uuid("Atleta não encontrado.") });
 
 const numero = z.coerce.number().min(0).optional();
 
@@ -51,6 +55,11 @@ export function criarAtletasRoutes(
         { pagina, limite },
       ),
     );
+  });
+
+  rotas.get("/atletas/:id", authenticate, exigirOlheiroVerificado, async (req, res) => {
+    const { id } = idSchema.parse(req.params);
+    res.json(await casos.consultarAtleta(id));
   });
 
   return rotas;
