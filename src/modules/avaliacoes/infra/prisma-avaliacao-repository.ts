@@ -106,10 +106,41 @@ export function criarAvaliacaoRepositoryPrisma(prisma: PrismaClient): AvaliacaoR
       return { dados: linhas.map(paraResumo), total };
     },
 
+    buscarDetalhe: async (id) => {
+      const avaliacao = await prisma.avaliacao.findUnique({
+        where: { id },
+        select: { ...selecaoResumo, requisitos: true, endereco: true },
+      });
+      if (!avaliacao) return null;
+      const { requisitos, endereco, ...resumo } = avaliacao;
+      return { ...paraResumo(resumo), requisitos, endereco };
+    },
+
     buscarParaDono: (id) =>
       prisma.avaliacao.findUnique({
         where: { id },
-        select: { olheiroId: true, nome: true, status: true, dataHora: true },
+        select: { olheiroId: true, nome: true, status: true, dataHora: true, vagasOcupadas: true },
+      }),
+
+    atualizar: (id, dados) =>
+      prisma.$transaction(async (tx) => {
+        const { vagasOcupadas } = await tx.avaliacao.findUniqueOrThrow({
+          where: { id },
+          select: { vagasOcupadas: true },
+        });
+        const avaliacao = await tx.avaliacao.update({
+          where: { id },
+          data: { ...dados, status: vagasOcupadas >= dados.vagas ? "ESGOTADA" : "ABERTA" },
+          select: selecaoResumo,
+        });
+        const inscritos = await tx.inscricao.findMany({
+          where: { avaliacaoId: id, status: { in: [...STATUS_ATIVOS] } },
+          select: { atletaId: true },
+        });
+        return {
+          avaliacao: paraResumo(avaliacao),
+          inscritos: inscritos.map((inscricao) => inscricao.atletaId),
+        };
       }),
 
     cancelar: (id) =>

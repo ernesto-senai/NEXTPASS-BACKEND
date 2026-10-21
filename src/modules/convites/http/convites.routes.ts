@@ -51,11 +51,11 @@ export function criarConvitesRoutes(
     res.status(201).json(convite);
   });
 
-  // Por enquanto só a caixa do atleta; olheiro e responsável vêm com as telas deles.
-  rotas.get("/convites", authenticate, authorize("ATLETA"), async (req, res) => {
+  // Caixa do atleta (RF-26) e, para o responsável, os convites dos atletas vinculados (RF-49).
+  rotas.get("/convites", authenticate, authorize("ATLETA", "RESPONSAVEL"), async (req, res) => {
     res.json(
       await casos.listarConvitesRecebidos(
-        usuarioDaRequisicao(req).id,
+        usuarioDaRequisicao(req),
         paginacaoSchema.parse(req.query),
       ),
     );

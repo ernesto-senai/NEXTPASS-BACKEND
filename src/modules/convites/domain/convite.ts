@@ -18,7 +18,12 @@ export interface ConviteRecebido {
   avaliacao: AvaliacaoResumo;
   // Inscrição criada pelo aceite (RN-03: a do menor aguarda o responsável).
   inscricao: { id: string; status: StatusInscricao } | null;
+  // Na visão do responsável, de qual atleta vinculado é o convite (RF-49).
+  atleta: { id: string; nome: string };
 }
+
+// Caixa do atleta ou, para o responsável, os convites dos atletas vinculados.
+export type DestinoDosConvites = { atletaId: string } | { responsavelId: string };
 
 // O necessário para responder um convite e avisar o olheiro.
 export interface ConviteParaResposta {
@@ -38,8 +43,8 @@ export interface NovoConvite {
 
 export interface ConviteRepository {
   // Do mais recente para o mais antigo.
-  listarDoAtleta(
-    atletaId: string,
+  listarRecebidos(
+    destino: DestinoDosConvites,
     paginacao: Paginacao,
   ): Promise<{ dados: ConviteRecebido[]; total: number }>;
   buscar(id: string): Promise<ConviteParaResposta | null>;

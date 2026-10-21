@@ -9,9 +9,11 @@ import {
 import { authorize } from "../../../shared/http/middlewares/authorize.ts";
 import { paginacaoSchema } from "../../../shared/http/pagination.ts";
 import type { CadastrarAvaliacao } from "../application/cadastrar-avaliacao.ts";
+import type { ConsultarAvaliacao } from "../application/consultar-avaliacao.ts";
 import type { ListarAvaliacoes } from "../application/listar-avaliacoes.ts";
 import type {
   CancelarAvaliacao,
+  EditarAvaliacao,
   ListarMinhasAvaliacoes,
 } from "../application/minhas-avaliacoes.ts";
 
@@ -28,6 +30,8 @@ export interface AvaliacoesCasosDeUso {
   cadastrarAvaliacao: CadastrarAvaliacao;
   listarMinhasAvaliacoes: ListarMinhasAvaliacoes;
   cancelarAvaliacao: CancelarAvaliacao;
+  consultarAvaliacao: ConsultarAvaliacao;
+  editarAvaliacao: EditarAvaliacao;
 }
 
 const minhasAvaliacoesSchema = paginacaoSchema.extend({
@@ -79,6 +83,22 @@ export function criarAvaliacoesRoutes(
   rotas.get("/perfil/avaliacoes", authenticate, authorize("OLHEIRO"), async (req, res) => {
     const { situacao, ...paginacao } = minhasAvaliacoesSchema.parse(req.query);
     res.json(await casos.listarMinhasAvaliacoes(usuarioDaRequisicao(req).id, situacao, paginacao));
+  });
+
+  rotas.get("/avaliacoes/:id", authenticate, async (req, res) => {
+    const { id } = idSchema.parse(req.params);
+    res.json(await casos.consultarAvaliacao(usuarioDaRequisicao(req), id));
+  });
+
+  rotas.patch("/avaliacoes/:id", authenticate, exigirOlheiroVerificado, async (req, res) => {
+    const { id } = idSchema.parse(req.params);
+    res.json(
+      await casos.editarAvaliacao(
+        usuarioDaRequisicao(req).id,
+        id,
+        novaAvaliacaoSchema.parse(req.body),
+      ),
+    );
   });
 
   rotas.delete("/avaliacoes/:id", authenticate, exigirOlheiroVerificado, async (req, res) => {

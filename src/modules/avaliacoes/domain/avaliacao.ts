@@ -3,6 +3,7 @@ import type {
   Categoria,
   Posicao,
   StatusAvaliacao,
+  StatusInscricao,
   TipoAvaliacao,
 } from "../../../generated/prisma/enums.ts";
 import type { Paginacao } from "../../../shared/domain/pagina.ts";
@@ -58,6 +59,15 @@ export interface FiltroAvaliacoes {
   ordem: OrdemAvaliacoes;
 }
 
+// RF-20: detalhes da avaliação. O endereço completo só aparece para o dono e
+// para o atleta com inscrição confirmada (RN-08).
+export interface AvaliacaoDetalhe extends AvaliacaoResumo {
+  requisitos: string;
+  endereco: string | null;
+  // Inscrição do atleta logado nesta avaliação (RF-21, RF-22).
+  minhaInscricao: { id: string; status: StatusInscricao } | null;
+}
+
 // RF-42: "Próximas" (abertas ou esgotadas, a mais próxima primeiro) e
 // "Anteriores" (já aconteceram ou foram canceladas, a mais recente primeiro).
 export type SituacaoAvaliacao = "proximas" | "anteriores";
@@ -76,12 +86,22 @@ export interface AvaliacaoRepository {
     paginacao: Paginacao,
     agora: Date,
   ): Promise<{ dados: AvaliacaoResumo[]; total: number }>;
+  buscarDetalhe(
+    id: string,
+  ): Promise<(AvaliacaoResumo & { requisitos: string; endereco: string }) | null>;
   buscarParaDono(id: string): Promise<{
     olheiroId: string;
     nome: string;
     status: StatusAvaliacao;
     dataHora: Date;
+    vagasOcupadas: number;
   } | null>;
+  // RF-43: grava a edição (o status volta a ABERTA ou vira ESGOTADA conforme as
+  // vagas) e devolve os atletas inscritos, para serem avisados.
+  atualizar(
+    id: string,
+    dados: NovaAvaliacao,
+  ): Promise<{ avaliacao: AvaliacaoResumo; inscritos: string[] }>;
   // RF-43: cancela, cancela as inscrições ativas e expira os convites pendentes.
   // Devolve os atletas que estavam inscritos, para serem avisados.
   cancelar(id: string): Promise<string[]>;
