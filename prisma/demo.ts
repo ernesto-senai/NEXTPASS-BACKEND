@@ -1,5 +1,4 @@
-// Dados de demonstração para testar os feeds enquanto upload de lances,
-// verificação e criação de avaliações não estão prontos.
+// Dados de demonstração para a apresentação (veja o ROTEIRO-APRESENTACAO.md).
 // Recria tudo a cada execução (as datas são relativas a hoje) e só mexe nas
 // contas @demo.nextpass.app. Senha de todas as contas: demo12345.
 import "dotenv/config";
@@ -63,9 +62,9 @@ async function main() {
       },
     });
 
+  // Poucas contas, só as do roteiro da apresentação: um olheiro verificado,
+  // dois atletas menores (um com responsável e outro sem) e a responsável.
   const fabrizio = await olheiro("olheiro", "Fabrizio Romano", "Palmeiras");
-  const carla = await olheiro("carla.olheira", "Carla Mendes", "São Paulo");
-  const joao = await olheiro("joao.olheiro", "João Silva", null);
 
   const atleta = (
     email: string,
@@ -94,7 +93,6 @@ async function main() {
 
   const silas = await atleta("atleta", "Silas Rodrigues", "2009-05-10", ["PE", "ATA"]);
   const leandro = await atleta("leandro", "Leandro Sousa", "2009-08-21", ["MEI", "ATA"]);
-  const matheus = await atleta("matheus", "Matheus Lima", "2010-02-03", ["MEI"]);
 
   const requisitos =
     "Chuteira, caneleira, documento com foto, short preto, camisa branca e garrafa de água.";
@@ -129,35 +127,38 @@ async function main() {
     categoria: "SUB_17",
     dataHora: emDias(3, 7, 30),
     vagas: 22,
-    vagasOcupadas: 9,
+    vagasOcupadas: 0,
     local: "Centro de Treinamento Zona Oeste",
   });
   await avaliacao({
-    olheiroId: carla.id,
-    nome: "Peneira São Paulo Sub-15",
+    olheiroId: fabrizio.id,
+    nome: "Peneira Palmeiras Sub-15",
     categoria: "SUB_15",
     dataHora: emDias(5, 8),
     vagas: 30,
-    vagasOcupadas: 12,
+    vagasOcupadas: 0,
     local: "Centro de Treinamento Barra Funda",
   });
-  const sub20 = await avaliacao({
-    olheiroId: carla.id,
-    nome: "Peneira São Paulo Sub-20",
-    categoria: "SUB_20",
+  // Uma vaga só, já ocupada pelo Silas: mostra "Vagas esgotadas" e, na
+  // inscrição confirmada dele, o endereço completo (RN-08).
+  const lotada = await avaliacao({
+    olheiroId: fabrizio.id,
+    nome: "Teste de linha Sub-17",
+    tipo: "TESTE",
+    categoria: "SUB_17",
     dataHora: emDias(7, 9),
-    vagas: 20,
-    vagasOcupadas: 20,
+    vagas: 1,
+    vagasOcupadas: 1,
     status: "ESGOTADA",
     local: "Centro de Treinamento Barra Funda",
   });
   const zonaLeste = await avaliacao({
-    olheiroId: joao.id,
+    olheiroId: fabrizio.id,
     nome: "Peneira aberta Zona Leste Sub-17",
     categoria: "SUB_17",
     dataHora: emDias(10, 8),
     vagas: 40,
-    vagasOcupadas: 3,
+    vagasOcupadas: 0,
     taxaCentavos: 0,
     local: "Campo do Parque do Carmo",
   });
@@ -168,25 +169,26 @@ async function main() {
     categoria: "SUB_17",
     dataHora: emDias(14, 15),
     vagas: 5,
-    vagasOcupadas: 1,
+    vagasOcupadas: 0,
     local: "Academia de Futebol",
   });
   const passada = await avaliacao({
-    olheiroId: joao.id,
+    olheiroId: fabrizio.id,
     nome: "Peneira de verão Sub-17",
     categoria: "SUB_17",
     dataHora: emDias(-20, 8),
     vagas: 30,
-    vagasOcupadas: 18,
+    vagasOcupadas: 1,
     status: "ENCERRADA",
     local: "Campo do Parque do Carmo",
   });
 
-  // Silas tem 17 anos: a inscrição futura aguarda o responsável (RN-03), e a
-  // passada já tinha sido aprovada.
+  // Silas tem 17 anos: a inscrição nova aguarda o responsável (RN-03); as
+  // outras duas já tinham sido aprovadas.
   await prisma.inscricao.createMany({
     data: [
       { avaliacaoId: palmeiras.id, atletaId: silas.id, status: "AGUARDANDO_RESPONSAVEL" },
+      { avaliacaoId: lotada.id, atletaId: silas.id, status: "CONFIRMADA" },
       { avaliacaoId: passada.id, atletaId: silas.id, status: "CONFIRMADA" },
     ],
   });
@@ -204,8 +206,8 @@ async function main() {
     },
   });
 
-  // Caixa de convites do Silas (RF-26): dois pendentes e um de avaliação que
-  // lotou, já expirado (RN-12).
+  // Convites (RF-26): dois pendentes na caixa do Silas; na do Leandro, um
+  // recusado e um de avaliação que lotou, já expirado (RN-12).
   await prisma.convite.createMany({
     data: [
       {
@@ -217,7 +219,7 @@ async function main() {
         criadoEm: emDias(-1, 10),
       },
       {
-        olheiroId: joao.id,
+        olheiroId: fabrizio.id,
         atletaId: silas.id,
         avaliacaoId: zonaLeste.id,
         mensagem:
@@ -225,10 +227,18 @@ async function main() {
         criadoEm: emDias(-2, 16),
       },
       {
-        olheiroId: carla.id,
-        atletaId: silas.id,
-        avaliacaoId: sub20.id,
-        mensagem: "Temos uma peneira Sub-20 e achamos que você pode se destacar.",
+        olheiroId: fabrizio.id,
+        atletaId: leandro.id,
+        avaliacaoId: zonaLeste.id,
+        mensagem: "Leandro, sua visão de jogo chamou atenção. Venha para a peneira da Zona Leste!",
+        status: "RECUSADO",
+        criadoEm: emDias(-3, 11),
+      },
+      {
+        olheiroId: fabrizio.id,
+        atletaId: leandro.id,
+        avaliacaoId: lotada.id,
+        mensagem: "Temos um teste individual e achamos que você pode se destacar.",
         status: "EXPIRADO",
         criadoEm: emDias(-4, 9),
       },
@@ -242,19 +252,19 @@ async function main() {
       {
         usuarioId: fabrizio.id,
         tipo: "CONVITE_RESPONDIDO",
-        texto: "Matheus Lima recusou o convite para Peneira Palmeiras Sub-17.",
+        texto: "Leandro Sousa recusou o convite para Peneira aberta Zona Leste Sub-17.",
         criadoEm: horasAtras(3),
       },
       {
         usuarioId: fabrizio.id,
         tipo: "NOVA_INSCRICAO",
-        texto: "Leandro Sousa se inscreveu em Peneira Palmeiras Sub-17.",
+        texto: "Silas Rodrigues se inscreveu em Teste de linha Sub-17.",
         criadoEm: horasAtras(26),
       },
       {
         usuarioId: fabrizio.id,
-        tipo: "CONVITE_RESPONDIDO",
-        texto: "Leandro Sousa aceitou o convite para Avaliação técnica Sub-17.",
+        tipo: "NOVA_INSCRICAO",
+        texto: "Silas Rodrigues se inscreveu em Peneira de verão Sub-17.",
         lida: true,
         criadoEm: horasAtras(50),
       },
@@ -263,7 +273,7 @@ async function main() {
 
   const lances = [
     { atleta: leandro, legenda: "Gol de falta na semifinal", dias: -1 },
-    { atleta: matheus, legenda: "Drible e finalização de fora da área", dias: -2 },
+    { atleta: silas, legenda: "Drible e finalização de fora da área", dias: -2 },
     { atleta: silas, legenda: "Jogada individual pela ponta esquerda", dias: -3 },
     { atleta: leandro, legenda: "Desarme e contra-ataque rápido", dias: -5 },
   ];
@@ -275,20 +285,19 @@ async function main() {
         duracaoSeg: 30 + i * 5,
         legenda: lance.legenda,
         localizacao: "São Paulo, SP",
-        destaque: i === 0,
+        // O primeiro lance de cada atleta fica no carrossel do perfil.
+        destaque: i < 2,
         criadoEm: emDias(lance.dias, 18),
       },
     });
     await prisma.visualizacao.createMany({
-      data: [fabrizio, carla, joao].slice(0, 3 - (i % 3)).map((o) => ({
-        videoId: video.id,
-        olheiroId: o.id,
-      })),
+      data: { videoId: video.id, olheiroId: fabrizio.id },
     });
   }
 
   console.log("Dados de demonstração prontos. Senha de todas as contas:", SENHA);
-  console.log(`  Atleta:  atleta${DOMINIO}`);
+  console.log(`  Atleta com responsável: atleta${DOMINIO}`);
+  console.log(`  Atleta sem responsável: leandro${DOMINIO}`);
   console.log(`  Olheiro: olheiro${DOMINIO} (verificado)`);
   console.log(`  Responsável do atleta: responsavel${DOMINIO}`);
 }
