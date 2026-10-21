@@ -1,6 +1,12 @@
 import type { PePreferencial, Posicao } from "../../../generated/prisma/enums.ts";
-import { anosDaCategoria, type Categoria } from "../../../shared/domain/idade-categoria.ts";
+import {
+  anosDaCategoria,
+  type Categoria,
+  calcularCategoria,
+  calcularIdade,
+} from "../../../shared/domain/idade-categoria.ts";
 import type { Paginacao } from "../../../shared/domain/pagina.ts";
+import type { LanceDoAtleta } from "../../videos/domain/lance.ts";
 
 // Card do atleta na busca do olheiro (RF-37). Idade e categoria são calculadas
 // pela data de nascimento (RN-01).
@@ -20,6 +26,21 @@ export interface AtletaResumo {
 }
 
 export type AtletaPerfil = Omit<AtletaResumo, "idade" | "categoria"> & { dataNascimento: Date };
+
+// RF-38: perfil do atleta na visão do olheiro, com os lances em destaque.
+export interface AtletaDetalhe extends AtletaResumo {
+  lances: LanceDoAtleta[];
+  totalLances: number;
+}
+
+// RN-01: idade e categoria saem da data de nascimento.
+export function paraAtletaResumo({ dataNascimento, ...atleta }: AtletaPerfil, hoje: Date) {
+  return {
+    ...atleta,
+    idade: calcularIdade(dataNascimento, hoje),
+    categoria: calcularCategoria(dataNascimento, hoje.getUTCFullYear()),
+  } satisfies AtletaResumo;
+}
 
 // Dados técnicos como estão no banco: opcionais até o atleta completar o perfil.
 export interface DadosTecnicos {
@@ -68,6 +89,8 @@ export interface AtletaRepository {
     consulta: ConsultaAtletas,
     paginacao: Paginacao,
   ): Promise<{ dados: AtletaPerfil[]; total: number }>;
+  // Só perfil completo de conta ativa; os outros "não existem" para o olheiro.
+  buscarPorId(id: string): Promise<AtletaPerfil | null>;
 }
 
 const DIA_MS = 24 * 60 * 60 * 1000;

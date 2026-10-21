@@ -1,6 +1,11 @@
 import type { Prisma, PrismaClient } from "../../../generated/prisma/client.ts";
 import { intervalo } from "../../../shared/domain/pagina.ts";
-import type { AtletaRepository, ConsultaAtletas, OrdemAtletas } from "../domain/atleta.ts";
+import type {
+  AtletaPerfil,
+  AtletaRepository,
+  ConsultaAtletas,
+  OrdemAtletas,
+} from "../domain/atleta.ts";
 
 const ordenacao = {
   nome: [{ usuario: { nome: "asc" } }],
@@ -25,6 +30,25 @@ function condicoes(consulta: ConsultaAtletas): Prisma.AtletaWhereInput {
   };
 }
 
+const comUsuario = { usuario: { select: { nome: true, fotoUrl: true } } } as const;
+
+type AtletaComUsuario = Prisma.AtletaGetPayload<{ include: typeof comUsuario }>;
+
+// Os "!" são seguros: o filtro de perfil completo garante esses campos.
+const paraPerfil = (atleta: AtletaComUsuario): AtletaPerfil => ({
+  id: atleta.usuarioId,
+  nome: atleta.usuario.nome,
+  fotoUrl: atleta.usuario.fotoUrl,
+  posicoes: atleta.posicoes,
+  dataNascimento: atleta.dataNascimento!,
+  cidade: atleta.cidade!,
+  uf: atleta.uf,
+  nacionalidade: atleta.nacionalidade!,
+  alturaCm: atleta.alturaCm!,
+  pesoKg: atleta.pesoKg!,
+  pePreferencial: atleta.pePreferencial!,
+});
+
 export function criarAtletaRepositoryPrisma(prisma: PrismaClient): AtletaRepository {
   return {
     buscar: async (consulta, paginacao) => {
@@ -33,30 +57,22 @@ export function criarAtletaRepositoryPrisma(prisma: PrismaClient): AtletaReposit
       const [linhas, total] = await prisma.$transaction([
         prisma.atleta.findMany({
           where,
-          include: { usuario: { select: { nome: true, fotoUrl: true } } },
+          include: comUsuario,
           orderBy: ordenacao[consulta.ordem],
           ...intervalo(paginacao),
         }),
         prisma.atleta.count({ where }),
       ]);
 
-      // Os "!" são seguros: o filtro de perfil completo garante esses campos.
-      return {
-        dados: linhas.map((atleta) => ({
-          id: atleta.usuarioId,
-          nome: atleta.usuario.nome,
-          fotoUrl: atleta.usuario.fotoUrl,
-          posicoes: atleta.posicoes,
-          dataNascimento: atleta.dataNascimento!,
-          cidade: atleta.cidade!,
-          uf: atleta.uf,
-          nacionalidade: atleta.nacionalidade!,
-          alturaCm: atleta.alturaCm!,
-          pesoKg: atleta.pesoKg!,
-          pePreferencial: atleta.pePreferencial!,
-        })),
-        total,
-      };
+      return { dados: linhas.map(paraPerfil), total };
+    },
+
+    buscarPorId: async (id) => {
+      const atleta = await prisma.atleta.findFirst({
+        where: { usuarioId: id, ...condicoes({ ordem: "nome" }) },
+        include: comUsuario,
+      });
+      return atleta ? paraPerfil(atleta) : null;
     },
   };
 }
