@@ -6,32 +6,21 @@ import {
   authenticate,
   usuarioDaRequisicao,
 } from "../../../shared/http/middlewares/authenticate.ts";
-import { emailSchema, senhaSchema } from "../../../shared/http/validacao.ts";
+import { emailSchema } from "../../../shared/http/validacao.ts";
 import type { EncerrarSessao } from "../application/encerrar-sessao.ts";
 import type { FazerLogin } from "../application/fazer-login.ts";
-import type { PedirNovaSenha, RedefinirSenha } from "../application/redefinir-senha.ts";
 import type { RenovarSessao } from "../application/renovar-sessao.ts";
 
 // Autenticação (Endpoints v2.0, seção 5.1)
 // POST   /auth/login              Público          RF-01, RF-03 (bloqueio após 5 tentativas, RNF-08)
-// POST   /auth/google             Público          RF-04, RF-12
 // POST   /auth/refresh            Público (token)  RF-03
 // POST   /auth/logout             Autenticado      RF-55
-// POST   /auth/esqueci-senha      Público          RF-05
-// POST   /auth/redefinir-senha    Público (token)  RF-05
 
 export interface AuthCasosDeUso {
   fazerLogin: FazerLogin;
   renovarSessao: RenovarSessao;
   encerrarSessao: EncerrarSessao;
-  pedirNovaSenha: PedirNovaSenha;
-  redefinirSenha: RedefinirSenha;
 }
-
-const novaSenhaSchema = z.object({
-  token: z.string("Link inválido.").min(10, "Link inválido."),
-  senha: senhaSchema,
-});
 
 const loginSchema = z.object({
   email: emailSchema,
@@ -63,18 +52,6 @@ export function criarAuthRoutes(casos: AuthCasosDeUso) {
     },
   });
 
-  // Também limita os pedidos de nova senha, para ninguém lotar a caixa de alguém.
-  const limiteNovaSenha = rateLimit({
-    windowMs: 15 * 60 * 1000,
-    limit: 5,
-    standardHeaders: "draft-8",
-    legacyHeaders: false,
-    keyGenerator: (req) => ipKeyGenerator(req.ip ?? ""),
-    handler: (_req, _res, next) => {
-      next(new AppError("MUITAS_TENTATIVAS", "Muitos pedidos. Tente de novo em 15 minutos."));
-    },
-  });
-
   rotas.post("/auth/login", limiteLogin, async (req, res) => {
     res.json(await casos.fazerLogin(loginSchema.parse(req.body)));
   });
@@ -87,17 +64,6 @@ export function criarAuthRoutes(casos: AuthCasosDeUso) {
   rotas.post("/auth/logout", authenticate, async (req, res) => {
     const { refreshToken } = refreshSchema.parse(req.body);
     await casos.encerrarSessao(refreshToken, usuarioDaRequisicao(req).id);
-    res.status(204).end();
-  });
-
-  rotas.post("/auth/esqueci-senha", limiteNovaSenha, async (req, res) => {
-    const { email } = z.object({ email: emailSchema }).parse(req.body);
-    await casos.pedirNovaSenha(email);
-    res.status(204).end();
-  });
-
-  rotas.post("/auth/redefinir-senha", async (req, res) => {
-    await casos.redefinirSenha(novaSenhaSchema.parse(req.body));
     res.status(204).end();
   });
 

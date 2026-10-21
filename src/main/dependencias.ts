@@ -8,17 +8,12 @@ import { criarAtletaRepositoryPrisma } from "../modules/atletas/infra/prisma-atl
 import { criarEmitirSessao } from "../modules/auth/application/emitir-sessao.ts";
 import { criarEncerrarSessao } from "../modules/auth/application/encerrar-sessao.ts";
 import { criarFazerLogin } from "../modules/auth/application/fazer-login.ts";
-import {
-  criarPedirNovaSenha,
-  criarRedefinirSenha,
-} from "../modules/auth/application/redefinir-senha.ts";
 import { criarRenovarSessao } from "../modules/auth/application/renovar-sessao.ts";
 import {
   type ContaRepository,
   DURACAO_SESSAO_MS,
   type EmissorTokens,
   type RefreshTokenRepository,
-  type TokenSenhaRepository,
   type UsuarioAutenticado,
 } from "../modules/auth/domain/sessao.ts";
 import type { AuthCasosDeUso } from "../modules/auth/http/auth.routes.ts";
@@ -26,7 +21,6 @@ import { criarEmissorTokens } from "../modules/auth/infra/emissor-tokens.ts";
 import {
   criarContaRepositoryPrisma,
   criarRefreshTokenRepositoryPrisma,
-  criarTokenSenhaRepositoryPrisma,
 } from "../modules/auth/infra/prisma-repositories.ts";
 import { criarCadastrarAvaliacao } from "../modules/avaliacoes/application/cadastrar-avaliacao.ts";
 import { criarConsultarAvaliacao } from "../modules/avaliacoes/application/consultar-avaliacao.ts";
@@ -126,7 +120,6 @@ import type { Hasher } from "../shared/domain/hasher.ts";
 import { exigirOlheiroVerificado } from "../shared/http/middlewares/authorize.ts";
 import { prisma } from "../shared/infra/database/prisma.ts";
 import { criarCorreioConsole } from "../shared/infra/mail/correio-console.ts";
-import { criarCorreioSmtp } from "../shared/infra/mail/correio-smtp.ts";
 import { criarBcryptHasher } from "../shared/infra/security/bcrypt-hasher.ts";
 import { criarArmazenamentoLocal } from "../shared/infra/storage/armazenamento-local.ts";
 
@@ -148,7 +141,6 @@ export interface Dependencias {
 export interface Adaptadores {
   contas: ContaRepository;
   refreshTokens: RefreshTokenRepository;
-  tokensSenha: TokenSenhaRepository;
   usuarios: UsuarioRepository;
   perfis: PerfilRepository;
   avaliacoes: AvaliacaoRepository;
@@ -163,7 +155,7 @@ export interface Adaptadores {
   olheiroVerificado: (usuarioId: string) => Promise<boolean>;
   armazenamento: Armazenamento;
   correio: Correio;
-  // Endereço do app nos links dos e-mails (nova senha, vínculo).
+  // Endereço do app no link do e-mail de vínculo com o responsável.
   urlDoApp: string;
   hasher: Hasher;
   tokens: EmissorTokens;
@@ -184,8 +176,6 @@ export function montarDependencias(adaptadores: Adaptadores): Dependencias {
       fazerLogin: criarFazerLogin({ ...adaptadores, emitirSessao }),
       renovarSessao: criarRenovarSessao({ ...adaptadores, emitirSessao }),
       encerrarSessao: criarEncerrarSessao(adaptadores),
-      pedirNovaSenha: criarPedirNovaSenha(adaptadores),
-      redefinirSenha: criarRedefinirSenha(adaptadores),
     },
     usuarios: {
       cadastrarAtleta: criarCadastrarAtleta(adaptadores),
@@ -259,7 +249,6 @@ export function criarDependencias(): Dependencias {
   return montarDependencias({
     contas: criarContaRepositoryPrisma(prisma),
     refreshTokens: criarRefreshTokenRepositoryPrisma(prisma),
-    tokensSenha: criarTokenSenhaRepositoryPrisma(prisma),
     usuarios: criarUsuarioRepositoryPrisma(prisma),
     perfis: criarPerfilRepositoryPrisma(prisma),
     avaliacoes: criarAvaliacaoRepositoryPrisma(prisma),
@@ -273,15 +262,7 @@ export function criarDependencias(): Dependencias {
     denuncias: criarDenunciaRepositoryPrisma(prisma),
     olheiroVerificado: criarConsultaOlheiroVerificado(prisma),
     armazenamento: criarArmazenamentoLocal(),
-    correio: env.SMTP_HOST
-      ? criarCorreioSmtp({
-          host: env.SMTP_HOST,
-          porta: env.SMTP_PORT,
-          usuario: env.SMTP_USER!,
-          senha: env.SMTP_PASS!,
-          remetente: env.MAIL_FROM,
-        })
-      : criarCorreioConsole(),
+    correio: criarCorreioConsole(),
     urlDoApp: env.APP_URL,
     hasher: criarBcryptHasher(),
     tokens: criarEmissorTokens({

@@ -34,7 +34,6 @@ export interface EmissorTokens {
 export interface ContaRepository {
   buscarPorEmail(email: string): Promise<Conta | null>;
   buscarPorId(id: string): Promise<Conta | null>;
-  atualizarSenha(id: string, senhaHash: string): Promise<void>;
 }
 
 export interface RefreshTokenSalvo {
@@ -49,18 +48,8 @@ export interface RefreshTokenRepository {
   buscarValido(tokenHash: string, agora: Date): Promise<RefreshTokenSalvo | null>;
   // Devolve false se outro pedido já usou o token (renovação concorrente).
   revogar(id: string, agora: Date): Promise<boolean>;
-  // Encerra a sessão em todos os aparelhos (ex.: depois de trocar a senha).
+  // Encerra a sessão em todos os aparelhos (ex.: conta suspensa pela moderação).
   revogarTodos(usuarioId: string, agora: Date): Promise<void>;
-}
-
-// RF-05: link de nova senha, de uso único e com validade curta.
-export const VALIDADE_LINK_SENHA_MS = 60 * 60 * 1000;
-
-export interface TokenSenhaRepository {
-  // Um pedido novo invalida os links anteriores ainda não usados.
-  salvar(dados: { usuarioId: string; tokenHash: string; expiraEm: Date }): Promise<void>;
-  buscarValido(tokenHash: string, agora: Date): Promise<{ id: string; usuarioId: string } | null>;
-  usar(id: string, agora: Date): Promise<boolean>;
 }
 
 export function paraUsuarioAutenticado({ id, nome, tipo }: Conta): UsuarioAutenticado {

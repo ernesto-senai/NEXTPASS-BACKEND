@@ -107,7 +107,6 @@ const contem = (texto: string, busca: string) => texto.toLowerCase().includes(bu
 export function criarAdaptadoresEmMemoria() {
   const usuarios: UsuarioMemoria[] = [];
   const tokens: TokenMemoria[] = [];
-  const tokensSenha: TokenMemoria[] = [];
   const avaliacoes: AvaliacaoMemoria[] = [];
   const inscricoes: InscricaoMemoria[] = [];
   const lances: (Omit<LanceDoFeed, "visualizacoes"> & { destaque?: boolean })[] = [];
@@ -187,9 +186,6 @@ export function criarAdaptadoresEmMemoria() {
     contas: {
       buscarPorEmail: async (email) => usuarios.find((u) => u.email === email) ?? null,
       buscarPorId: async (id) => usuario(id) ?? null,
-      atualizarSenha: async (id, senhaHash) => {
-        usuario(id)!.senhaHash = senhaHash;
-      },
     },
 
     perfis: {
@@ -293,23 +289,6 @@ export function criarAdaptadoresEmMemoria() {
         for (const token of tokens) {
           if (token.usuarioId === usuarioId && !token.usadoEm) token.usadoEm = agora;
         }
-      },
-    },
-
-    tokensSenha: {
-      salvar: async (dados) => {
-        for (const token of tokensSenha) {
-          if (token.usuarioId === dados.usuarioId && !token.usadoEm) token.usadoEm = new Date();
-        }
-        tokensSenha.push({ ...dados, id: novoId(), usadoEm: null });
-      },
-      buscarValido: async (tokenHash, agora) =>
-        tokensSenha.find((t) => t.tokenHash === tokenHash && !t.usadoEm && t.expiraEm > agora) ??
-        null,
-      usar: async (id, agora) => {
-        const token = tokensSenha.find((t) => t.id === id && !t.usadoEm);
-        if (token) token.usadoEm = agora;
-        return !!token;
       },
     },
 
@@ -915,7 +894,6 @@ export function criarAdaptadoresEmMemoria() {
     adaptadores,
     usuarios,
     tokens,
-    tokensSenha,
     avaliacoes,
     inscricoes,
     lances,
