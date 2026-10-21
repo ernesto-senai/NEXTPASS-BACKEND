@@ -13,13 +13,15 @@ if (!DATABASE_URL || !ADMIN_EMAIL || !ADMIN_PASSWORD) {
 const prisma = new PrismaClient({ adapter: new PrismaPg({ connectionString: DATABASE_URL }) });
 
 try {
+  // Rodar de novo atualiza a senha para a do .env.
+  const senhaHash = await bcrypt.hash(ADMIN_PASSWORD, 10);
   await prisma.usuario.upsert({
     where: { email: ADMIN_EMAIL },
-    update: {},
+    update: { senhaHash },
     create: {
       nome: "Administrador NextPass",
       email: ADMIN_EMAIL,
-      senhaHash: await bcrypt.hash(ADMIN_PASSWORD, 10),
+      senhaHash,
       tipo: "ADMIN",
       termosAceitosEm: new Date(),
     },

@@ -126,6 +126,7 @@ import type { Hasher } from "../shared/domain/hasher.ts";
 import { exigirOlheiroVerificado } from "../shared/http/middlewares/authorize.ts";
 import { prisma } from "../shared/infra/database/prisma.ts";
 import { criarCorreioConsole } from "../shared/infra/mail/correio-console.ts";
+import { criarCorreioSmtp } from "../shared/infra/mail/correio-smtp.ts";
 import { criarBcryptHasher } from "../shared/infra/security/bcrypt-hasher.ts";
 import { criarArmazenamentoLocal } from "../shared/infra/storage/armazenamento-local.ts";
 
@@ -272,7 +273,15 @@ export function criarDependencias(): Dependencias {
     denuncias: criarDenunciaRepositoryPrisma(prisma),
     olheiroVerificado: criarConsultaOlheiroVerificado(prisma),
     armazenamento: criarArmazenamentoLocal(),
-    correio: criarCorreioConsole(),
+    correio: env.SMTP_HOST
+      ? criarCorreioSmtp({
+          host: env.SMTP_HOST,
+          porta: env.SMTP_PORT,
+          usuario: env.SMTP_USER!,
+          senha: env.SMTP_PASS!,
+          remetente: env.MAIL_FROM,
+        })
+      : criarCorreioConsole(),
     urlDoApp: env.APP_URL,
     hasher: criarBcryptHasher(),
     tokens: criarEmissorTokens({
