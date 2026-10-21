@@ -7,6 +7,9 @@ const envSchema = z.object({
   DATABASE_URL: z.url(),
   JWT_ACCESS_SECRET: z.string().min(32),
   JWT_ACCESS_EXPIRES_IN: z.string().default("15m"),
+  // Endereço do app nos links dos e-mails (nova senha, vínculo). No celular,
+  // use o esquema do app: nextpass://
+  APP_URL: z.string().default("http://localhost:8081"),
   CORS_ORIGINS: z
     .string()
     .default("")

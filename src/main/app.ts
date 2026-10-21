@@ -30,15 +30,17 @@ export function createApp(deps: Dependencias = criarDependencias()) {
     res.json({ status: "ok" });
   });
 
-  // Lances enviados pelos atletas (RF-25), com nome de arquivo aleatório. Só a
-  // pasta de vídeos é pública: documentos de verificação ficam fora (RNF-09).
-  // A política "cross-origin" deixa o app web, em outra porta, tocar o vídeo.
-  app.use(
-    "/uploads/videos",
-    express.static(path.join(PASTA_UPLOADS, "videos"), {
-      setHeaders: (res) => res.setHeader("Cross-Origin-Resource-Policy", "cross-origin"),
-    }),
-  );
+  // Lances (RF-25) e fotos de perfil (RF-14), com nome de arquivo aleatório. Só
+  // essas pastas são públicas: documentos de verificação ficam fora (RNF-09).
+  // A política "cross-origin" deixa o app web, em outra porta, mostrar os arquivos.
+  for (const pasta of ["videos", "fotos"]) {
+    app.use(
+      `/uploads/${pasta}`,
+      express.static(path.join(PASTA_UPLOADS, pasta), {
+        setHeaders: (res) => res.setHeader("Cross-Origin-Resource-Policy", "cross-origin"),
+      }),
+    );
+  }
 
   app.use("/api/v1", criarRotas(deps));
 
