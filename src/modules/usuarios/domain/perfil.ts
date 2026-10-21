@@ -55,7 +55,21 @@ export interface DadosDoAtleta {
   nacionalidade: string;
 }
 
+// RF-14: formatos aceitos para a foto do perfil (tipo MIME → extensão).
+export const FORMATOS_FOTO = {
+  "image/jpeg": "jpg",
+  "image/png": "png",
+  "image/webp": "webp",
+} as const;
+export type FormatoFoto = keyof typeof FORMATOS_FOTO;
+export const TAMANHO_MAXIMO_FOTO_MB = 5;
+
 export interface PerfilRepository {
   buscar(usuarioId: string): Promise<PerfilSalvo | null>;
   atualizarAtleta(usuarioId: string, dados: DadosDoAtleta): Promise<void>;
+  // Devolve a foto anterior, para o arquivo ser apagado.
+  atualizarFoto(usuarioId: string, fotoUrl: string): Promise<string | null>;
+  // RF-56: apaga a conta e tudo o que depende dela; devolve os arquivos da
+  // pessoa (foto, lances, documentos), para também serem apagados.
+  excluirConta(usuarioId: string): Promise<string[]>;
 }

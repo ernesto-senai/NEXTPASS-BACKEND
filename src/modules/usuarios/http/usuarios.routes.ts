@@ -8,10 +8,13 @@ import {
   usuarioDaRequisicao,
 } from "../../../shared/http/middlewares/authenticate.ts";
 import { authorize } from "../../../shared/http/middlewares/authorize.ts";
+import { receberArquivo } from "../../../shared/http/upload.ts";
 import { emailSchema, senhaSchema, telefoneSchema } from "../../../shared/http/validacao.ts";
 import type { Sessao } from "../../auth/domain/sessao.ts";
 import type { CadastrarAtleta, CadastrarOlheiro } from "../application/cadastrar-usuario.ts";
+import type { ExcluirConta, TrocarFoto } from "../application/conta.ts";
 import type { AtualizarPerfilAtleta, ConsultarPerfil } from "../application/perfil.ts";
+import { FORMATOS_FOTO, type FormatoFoto, TAMANHO_MAXIMO_FOTO_MB } from "../domain/perfil.ts";
 import type { UsuarioCriado } from "../domain/usuario-repository.ts";
 import { TERMOS_VIGENTES } from "../domain/termos.ts";
 
@@ -31,6 +34,8 @@ export interface UsuariosCasosDeUso {
   iniciarSessao: (usuario: UsuarioCriado) => Promise<Sessao>;
   consultarPerfil: ConsultarPerfil;
   atualizarPerfilAtleta: AtualizarPerfilAtleta;
+  trocarFoto: TrocarFoto;
+  excluirConta: ExcluirConta;
 }
 
 const cadastroAtletaSchema = z.object({
@@ -81,6 +86,15 @@ const perfilAtletaSchema = z.object({
   nacionalidade: z.string().trim().min(2, "Informe a nacionalidade.").max(60),
 });
 
+const receberFoto = receberArquivo({
+  campo: "foto",
+  tipos: Object.keys(FORMATOS_FOTO),
+  tamanhoMaximoMb: TAMANHO_MAXIMO_FOTO_MB,
+  descricao: "uma foto em JPG, PNG ou WebP",
+});
+
+const exclusaoSchema = z.object({ senha: z.string("Informe a senha.").min(1, "Informe a senha.") });
+
 export function criarUsuariosRoutes(casos: UsuariosCasosDeUso) {
   const rotas = Router();
 
@@ -110,6 +124,23 @@ export function criarUsuariosRoutes(casos: UsuariosCasosDeUso) {
         perfilAtletaSchema.parse(req.body),
       ),
     );
+  });
+
+  rotas.post("/perfil/foto", authenticate, receberFoto, async (req, res) => {
+    // receberFoto só segue adiante com a foto válida em req.file.
+    const foto = req.file!;
+    res.json(
+      await casos.trocarFoto(usuarioDaRequisicao(req).id, {
+        conteudo: foto.buffer,
+        formato: foto.mimetype as FormatoFoto,
+      }),
+    );
+  });
+
+  rotas.delete("/perfil", authenticate, async (req, res) => {
+    const { senha } = exclusaoSchema.parse(req.body);
+    await casos.excluirConta(usuarioDaRequisicao(req).id, senha);
+    res.status(204).end();
   });
 
   return rotas;
