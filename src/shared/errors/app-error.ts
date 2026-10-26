@@ -1,7 +1,7 @@
 // Códigos fixos que o app usa para tratar cada caso (Endpoints v2.0, seção 3).
 export const codigosErro = {
   DADOS_INVALIDOS: 400,
-  // Link de e-mail (nova senha, vínculo) usado, vencido ou inexistente.
+  // Link de confirmação do vínculo usado, vencido ou inexistente.
   LINK_INVALIDO: 400,
   NAO_AUTENTICADO: 401,
   CREDENCIAIS_INVALIDAS: 401,
