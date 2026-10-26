@@ -1,5 +1,6 @@
 import type { Prisma, PrismaClient } from "../../../generated/prisma/client.ts";
 import { intervalo } from "../../../shared/domain/pagina.ts";
+import { idsQueCombinam } from "../../../shared/infra/database/busca-textual.ts";
 import { STATUS_ATIVOS } from "../../inscricoes/domain/inscricao.ts";
 import {
   type AvaliacaoRepository,
@@ -53,9 +54,18 @@ const ordenacao = {
   menorPreco: [{ taxaCentavos: "asc" }, { dataHora: "asc" }],
 } satisfies Record<OrdemAvaliacoes, Prisma.AvaliacaoOrderByWithRelationInput[]>;
 
-function condicoes(filtro: FiltroAvaliacoes, agora: Date): Prisma.AvaliacaoWhereInput {
+// Busca e cidade ignoram acentos e toleram pequenos erros (RNF-16).
+async function condicoes(
+  prisma: PrismaClient,
+  filtro: FiltroAvaliacoes,
+  agora: Date,
+): Promise<Prisma.AvaliacaoWhereInput> {
   const { busca, categoria, tipo, cidade, posicoes, precoMaxCentavos, dias } = filtro;
-  const contem = (texto: string) => ({ contains: texto, mode: "insensitive" as const });
+  const [porNome, porClube, porCidade] = await Promise.all([
+    busca ? idsQueCombinam(prisma, "nomeDaAvaliacao", busca) : null,
+    busca ? idsQueCombinam(prisma, "clubeDoOlheiro", busca) : null,
+    cidade ? idsQueCombinam(prisma, "cidadeDaAvaliacao", cidade) : null,
+  ]);
 
   return {
     // RN-06: avaliação esgotada aparece, a não ser que o atleta peça só as com vagas.
@@ -65,11 +75,13 @@ function condicoes(filtro: FiltroAvaliacoes, agora: Date): Prisma.AvaliacaoWhere
     olheiro: { usuario: { status: "ATIVO" } },
     ...(categoria ? { categoria } : {}),
     ...(tipo ? { tipo } : {}),
-    ...(cidade ? { cidade: contem(cidade) } : {}),
+    ...(porCidade ? { id: { in: porCidade } } : {}),
     ...(posicoes?.length ? { posicoes: { hasSome: posicoes } } : {}),
     ...(precoMaxCentavos !== undefined ? { taxaCentavos: { lte: precoMaxCentavos } } : {}),
     // RF-23: pelo nome da avaliação ou do clube.
-    ...(busca ? { OR: [{ nome: contem(busca) }, { olheiro: { clube: contem(busca) } }] } : {}),
+    ...(porNome && porClube
+      ? { OR: [{ id: { in: porNome } }, { olheiroId: { in: porClube } }] }
+      : {}),
   };
 }
 
@@ -162,7 +174,7 @@ export function criarAvaliacaoRepositoryPrisma(prisma: PrismaClient): AvaliacaoR
       }),
 
     listarFuturas: async (filtro, paginacao, agora) => {
-      const where = condicoes(filtro, agora);
+      const where = await condicoes(prisma, filtro, agora);
 
       const [linhas, total] = await prisma.$transaction([
         prisma.avaliacao.findMany({

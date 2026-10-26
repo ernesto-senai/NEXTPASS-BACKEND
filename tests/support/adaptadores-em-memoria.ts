@@ -18,6 +18,7 @@ import { inscricaoAtiva } from "../../src/modules/inscricoes/domain/inscricao.ts
 import type { Notificacao } from "../../src/modules/notificacoes/domain/notificacao.ts";
 import type { LanceDoFeed } from "../../src/modules/videos/domain/lance.ts";
 import type { Email } from "../../src/shared/domain/correio.ts";
+import { combinaComBusca } from "../../src/shared/domain/busca.ts";
 import { intervalo, type Paginacao } from "../../src/shared/domain/pagina.ts";
 
 interface UsuarioMemoria {
@@ -100,7 +101,8 @@ const paginar = <T>(lista: T[], paginacao: Paginacao) => {
   return { dados: lista.slice(skip, skip + take), total: lista.length };
 };
 
-const contem = (texto: string, busca: string) => texto.toLowerCase().includes(busca.toLowerCase());
+// Mesma regra da busca no banco (RNF-16).
+const contem = combinaComBusca;
 
 // Adaptadores sem banco para testar casos de uso e rotas. O hasher é trivial
 // para os testes rodarem rápido; o emissor de tokens é o real.
@@ -754,9 +756,9 @@ export function criarAdaptadoresEmMemoria() {
         ),
       buscar: async (id) => {
         const verificacao = verificacoes.find((v) => v.id === id);
-        return verificacao
-          ? { id, olheiroId: verificacao.olheiroId, status: verificacao.status }
-          : null;
+        if (!verificacao) return null;
+        const { olheiroId, status, documentoUrl, comprovanteUrl } = verificacao;
+        return { id, olheiroId, status, documentoUrl, comprovanteUrl };
       },
       analisar: async (id, { status, motivoRecusa }) => {
         const verificacao = verificacoes.find((v) => v.id === id)!;
@@ -887,6 +889,7 @@ export function criarAdaptadoresEmMemoria() {
       remover: async (url) => {
         arquivos.delete(url);
       },
+      ler: async (url) => arquivos.get(url) ?? null,
     },
   };
 

@@ -1,5 +1,6 @@
 import type { Prisma, PrismaClient } from "../../../generated/prisma/client.ts";
 import { intervalo } from "../../../shared/domain/pagina.ts";
+import { idsQueCombinam } from "../../../shared/infra/database/busca-textual.ts";
 import type {
   AtletaPerfil,
   AtletaRepository,
@@ -14,18 +15,33 @@ const ordenacao = {
 } satisfies Record<OrdemAtletas, Prisma.AtletaOrderByWithRelationInput[]>;
 
 // Cada campo exige o dado preenchido (RN-02: perfil incompleto não aparece na
-// busca) e, quando há filtro, também o valor pedido.
-function condicoes(consulta: ConsultaAtletas): Prisma.AtletaWhereInput {
-  const contem = (texto: string) => ({ contains: texto, mode: "insensitive" as const });
+// busca) e, quando há filtro, também o valor pedido. Nome, cidade e
+// nacionalidade ignoram acentos e toleram pequenos erros (RNF-16).
+async function condicoes(
+  prisma: PrismaClient,
+  consulta: ConsultaAtletas,
+): Promise<Prisma.AtletaWhereInput> {
+  const textos = await Promise.all(
+    (
+      [
+        ["nomeDoUsuario", consulta.busca],
+        ["cidadeDoAtleta", consulta.cidade],
+        ["nacionalidadeDoAtleta", consulta.nacionalidade],
+      ] as const
+    )
+      .filter(([, valor]) => !!valor)
+      .map(([campo, valor]) => idsQueCombinam(prisma, campo, valor!)),
+  );
 
   return {
-    usuario: { status: "ATIVO", ...(consulta.busca ? { nome: contem(consulta.busca) } : {}) },
+    usuario: { status: "ATIVO" },
+    ...(textos.length ? { AND: textos.map((ids) => ({ usuarioId: { in: ids } })) } : {}),
     dataNascimento: { not: null, gte: consulta.nascidoDe, lte: consulta.nascidoAte },
     alturaCm: { not: null, gte: consulta.alturaMin, lte: consulta.alturaMax },
     pesoKg: { not: null, gte: consulta.pesoMin, lte: consulta.pesoMax },
     pePreferencial: consulta.pePreferencial ?? { not: null },
-    cidade: consulta.cidade ? contem(consulta.cidade) : { not: null },
-    nacionalidade: consulta.nacionalidade ? contem(consulta.nacionalidade) : { not: null },
+    cidade: { not: null },
+    nacionalidade: { not: null },
     posicoes: consulta.posicoes?.length ? { hasSome: consulta.posicoes } : { isEmpty: false },
   };
 }
@@ -52,7 +68,7 @@ const paraPerfil = (atleta: AtletaComUsuario): AtletaPerfil => ({
 export function criarAtletaRepositoryPrisma(prisma: PrismaClient): AtletaRepository {
   return {
     buscar: async (consulta, paginacao) => {
-      const where = condicoes(consulta);
+      const where = await condicoes(prisma, consulta);
 
       const [linhas, total] = await prisma.$transaction([
         prisma.atleta.findMany({
@@ -69,7 +85,7 @@ export function criarAtletaRepositoryPrisma(prisma: PrismaClient): AtletaReposit
 
     buscarPorId: async (id) => {
       const atleta = await prisma.atleta.findFirst({
-        where: { usuarioId: id, ...condicoes({ ordem: "nome" }) },
+        where: { usuarioId: id, ...(await condicoes(prisma, { ordem: "nome" })) },
         include: comUsuario,
       });
       return atleta ? paraPerfil(atleta) : null;

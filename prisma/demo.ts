@@ -2,9 +2,13 @@
 // Recria tudo a cada execução (as datas são relativas a hoje) e só mexe nas
 // contas @demo.nextpass.app. Senha de todas as contas: demo12345.
 import "dotenv/config";
+import { copyFile, mkdir, readdir, readFile } from "node:fs/promises";
+import path from "node:path";
 import { PrismaPg } from "@prisma/adapter-pg";
 import bcrypt from "bcryptjs";
 import { PrismaClient } from "../src/generated/prisma/client.ts";
+import { lerDuracaoDoVideo } from "../src/modules/videos/infra/duracao-video.ts";
+import { PASTA_UPLOADS } from "../src/shared/infra/storage/armazenamento-local.ts";
 
 const { DATABASE_URL } = process.env;
 if (!DATABASE_URL) throw new Error("Defina DATABASE_URL no .env.");
@@ -14,12 +18,33 @@ const prisma = new PrismaClient({ adapter: new PrismaPg({ connectionString: DATA
 const DOMINIO = "@demo.nextpass.app";
 const SENHA = "demo12345";
 
-// Vídeos de domínio público (CC0) do MDN, só para o feed tocar algo até o
-// upload de lances existir. Não são de futebol e duram poucos segundos.
-const VIDEOS = [
+// Vídeos de domínio público (CC0) do MDN, usados quando não há lances reais.
+// Não são de futebol e duram poucos segundos.
+const VIDEOS_DE_EXEMPLO = [
   "https://interactive-examples.mdn.mozilla.net/media/cc0-videos/flower.mp4",
   "https://interactive-examples.mdn.mozilla.net/media/cc0-videos/friday.mp4",
-];
+].map((url) => ({ url, duracaoSeg: 45 }));
+
+// Lances reais para a apresentação: coloque vídeos MP4 ou MOV (30 a 60 s,
+// gravados com o celular em pé) na pasta uploads/demo-lances. Eles entram no
+// lugar dos exemplos, em ordem alfabética, e continuam lá a cada db:demo.
+const PASTA_LANCES = path.join(PASTA_UPLOADS, "demo-lances");
+
+async function videosDaDemo() {
+  const arquivos = await readdir(PASTA_LANCES).catch(() => [] as string[]);
+  const videos = arquivos.filter((nome) => /\.(mp4|mov)$/i.test(nome)).sort();
+  if (videos.length === 0) return VIDEOS_DE_EXEMPLO;
+
+  await mkdir(path.join(PASTA_UPLOADS, "videos"), { recursive: true });
+  return Promise.all(
+    videos.map(async (nome, i) => {
+      const destino = `demo-${i + 1}${path.extname(nome).toLowerCase()}`;
+      await copyFile(path.join(PASTA_LANCES, nome), path.join(PASTA_UPLOADS, "videos", destino));
+      const duracao = lerDuracaoDoVideo(await readFile(path.join(PASTA_LANCES, nome)));
+      return { url: `/uploads/videos/${destino}`, duracaoSeg: Math.round(duracao ?? 45) };
+    }),
+  );
+}
 
 function emDias(dias: number, hora: number, minuto = 0) {
   const data = new Date(Date.now() + dias * 24 * 60 * 60 * 1000);
@@ -277,12 +302,14 @@ async function main() {
     { atleta: silas, legenda: "Jogada individual pela ponta esquerda", dias: -3 },
     { atleta: leandro, legenda: "Desarme e contra-ataque rápido", dias: -5 },
   ];
+  const videos = await videosDaDemo();
   for (const [i, lance] of lances.entries()) {
+    const { url, duracaoSeg } = videos[i % videos.length]!;
     const video = await prisma.video.create({
       data: {
         atletaId: lance.atleta.id,
-        url: VIDEOS[i % VIDEOS.length]!,
-        duracaoSeg: 30 + i * 5,
+        url,
+        duracaoSeg,
         legenda: lance.legenda,
         localizacao: "São Paulo, SP",
         // O primeiro lance de cada atleta fica no carrossel do perfil.
@@ -296,6 +323,11 @@ async function main() {
   }
 
   console.log("Dados de demonstração prontos. Senha de todas as contas:", SENHA);
+  console.log(
+    videos === VIDEOS_DE_EXEMPLO
+      ? "  Lances: vídeos de exemplo (coloque os reais em uploads/demo-lances)"
+      : `  Lances: ${videos.length} vídeo(s) de uploads/demo-lances`,
+  );
   console.log(`  Atleta com responsável: atleta${DOMINIO}`);
   console.log(`  Atleta sem responsável: leandro${DOMINIO}`);
   console.log(`  Olheiro: olheiro${DOMINIO} (verificado)`);

@@ -16,6 +16,15 @@ export const FORMATOS_DOCUMENTO = {
   "application/pdf": "pdf",
 } as const;
 export type FormatoDocumento = keyof typeof FORMATOS_DOCUMENTO;
+
+// RF-57: tipo do arquivo pela extensão guardada, para o administrador abrir.
+export const TIPO_DA_EXTENSAO: Record<string, FormatoDocumento> = {
+  jpg: "image/jpeg",
+  png: "image/png",
+  pdf: "application/pdf",
+};
+
+export type ArquivoVerificacao = "documento" | "comprovante";
 export const TAMANHO_MAXIMO_DOCUMENTO_MB = 10;
 
 // RF-57: pedido na fila do administrador.
@@ -46,7 +55,13 @@ export interface VerificacaoRepository {
     status: StatusVerificacao,
     paginacao: Paginacao,
   ): Promise<{ dados: VerificacaoParaAnalise[]; total: number }>;
-  buscar(id: string): Promise<{ id: string; olheiroId: string; status: StatusVerificacao } | null>;
+  buscar(id: string): Promise<{
+    id: string;
+    olheiroId: string;
+    status: StatusVerificacao;
+    documentoUrl: string;
+    comprovanteUrl: string | null;
+  } | null>;
   // Grava a decisão e libera (ou não) as funções do olheiro (RN-04).
   analisar(
     id: string,

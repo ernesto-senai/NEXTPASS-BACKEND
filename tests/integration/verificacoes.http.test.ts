@@ -107,6 +107,46 @@ describe("Análise da verificação pelo administrador (RF-57)", () => {
     expect(reenvio.status).toBe(201);
   });
 
+  it("abre o documento e o comprovante pelo link da fila (RNF-09)", async () => {
+    const admin = await cenario.admin();
+    const doClube = await cenario.olheiro("Carla Mendes", "carla@exemplo.com", {
+      atuacao: "CLUBE",
+      clube: "São Paulo",
+    });
+    const COMPROVANTE = Buffer.from("%PDF-1.4 comprovante do clube");
+    await enviar(doClube, {
+      documento: { conteudo: PDF, tipo: "application/pdf" },
+      comprovante: { conteudo: COMPROVANTE, tipo: "application/pdf" },
+    });
+
+    const [pedido] = (await cenario.como(admin).get("/admin/verificacoes")).body.dados;
+    expect(pedido.documentoUrl).toBeUndefined();
+    expect(pedido.documento).toBe(
+      `/api/v1/admin/verificacoes/${pedido.id}/documento?arquivo=documento`,
+    );
+
+    const rota = `/admin/verificacoes/${pedido.id}/documento`;
+    const documento = await cenario.como(admin).get(rota);
+    expect(documento.status).toBe(200);
+    expect(documento.headers["content-type"]).toContain("application/pdf");
+    expect(Buffer.from(documento.body).toString()).toBe(PDF.toString());
+
+    const comprovante = await cenario.como(admin).get(`${rota}?arquivo=comprovante`);
+    expect(Buffer.from(comprovante.body).toString()).toBe(COMPROVANTE.toString());
+
+    // Só o administrador abre, e o olheiro sem comprovante não tem o segundo arquivo.
+    expect((await cenario.como(doClube).get(rota)).status).toBe(403);
+    await enviar(olheiro, { documento: { conteudo: PDF, tipo: "application/pdf" } });
+    const semComprovante = (await cenario.como(admin).get("/admin/verificacoes")).body.dados.find(
+      (v: { olheiro: { nome: string } }) => v.olheiro.nome === "Fabrizio Romano",
+    );
+    expect(semComprovante.comprovante).toBeNull();
+    const inexistente = await cenario
+      .como(admin)
+      .get(`/admin/verificacoes/${semComprovante.id}/documento?arquivo=comprovante`);
+    expect(inexistente.status).toBe(404);
+  });
+
   it("é só do administrador", async () => {
     expect((await cenario.como(olheiro).get("/admin/verificacoes")).status).toBe(403);
   });

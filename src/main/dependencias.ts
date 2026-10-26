@@ -82,6 +82,7 @@ import { criarPerfilRepositoryPrisma } from "../modules/usuarios/infra/prisma-pe
 import { criarUsuarioRepositoryPrisma } from "../modules/usuarios/infra/prisma-usuario-repository.ts";
 import { criarConsultarVerificacao } from "../modules/verificacoes/application/consultar-verificacao.ts";
 import {
+  criarAbrirDocumento,
   criarAnalisarVerificacao,
   criarEnviarDocumentos,
   criarListarVerificacoes,
@@ -227,6 +228,7 @@ export function montarDependencias(adaptadores: Adaptadores): Dependencias {
       enviarDocumentos: criarEnviarDocumentos(adaptadores),
       listarVerificacoes: criarListarVerificacoes(adaptadores),
       analisarVerificacao: criarAnalisarVerificacao(adaptadores),
+      abrirDocumento: criarAbrirDocumento(adaptadores),
     },
     vinculos: {
       pedirVinculo: criarPedirVinculo(adaptadores),

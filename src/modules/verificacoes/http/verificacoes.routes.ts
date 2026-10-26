@@ -10,6 +10,7 @@ import { paginacaoSchema } from "../../../shared/http/pagination.ts";
 import { arquivoDoCampo, receberArquivos } from "../../../shared/http/upload.ts";
 import type { ConsultarVerificacao } from "../application/consultar-verificacao.ts";
 import type {
+  AbrirDocumento,
   AnalisarVerificacao,
   EnviarDocumentos,
   ListarVerificacoes,
@@ -24,6 +25,7 @@ import {
 // POST   /perfil/verificacao      Olheiro          RF-16 (multipart, armazenamento privado, RNF-09)
 // GET    /perfil/verificacao      Olheiro          RF-17
 // GET    /admin/verificacoes      Administrador    RF-57
+// GET    /admin/verificacoes/:id/documento  Administrador  RF-57 (?arquivo=documento|comprovante, RNF-09)
 // PATCH  /admin/verificacoes/:id  Administrador    RF-57
 
 export interface VerificacoesCasosDeUso {
@@ -31,6 +33,7 @@ export interface VerificacoesCasosDeUso {
   enviarDocumentos: EnviarDocumentos;
   listarVerificacoes: ListarVerificacoes;
   analisarVerificacao: AnalisarVerificacao;
+  abrirDocumento: AbrirDocumento;
 }
 
 // Campos "documento" (obrigatório) e "comprovante" (quem atua por clube).
@@ -47,6 +50,9 @@ const filaSchema = paginacaoSchema.extend({
 });
 
 const idSchema = z.object({ id: z.uuid("Verificação não encontrada.") });
+const arquivoSchema = z.object({
+  arquivo: z.enum(["documento", "comprovante"]).default("documento"),
+});
 
 const decisaoSchema = z
   .object({
@@ -91,6 +97,23 @@ export function criarVerificacoesRoutes(casos: VerificacoesCasosDeUso) {
     const { status, ...paginacao } = filaSchema.parse(req.query);
     res.json(await casos.listarVerificacoes(status, paginacao));
   });
+
+  rotas.get(
+    "/admin/verificacoes/:id/documento",
+    authenticate,
+    authorize("ADMIN"),
+    async (req, res) => {
+      const { id } = idSchema.parse(req.params);
+      const { arquivo } = arquivoSchema.parse(req.query);
+      const { conteudo, tipo } = await casos.abrirDocumento(id, arquivo);
+      // Abre no navegador (ou no Thunder Client) e não fica em cache.
+      res
+        .type(tipo)
+        .set("Content-Disposition", "inline")
+        .set("Cache-Control", "no-store")
+        .send(conteudo);
+    },
+  );
 
   rotas.patch("/admin/verificacoes/:id", authenticate, authorize("ADMIN"), async (req, res) => {
     const { id } = idSchema.parse(req.params);

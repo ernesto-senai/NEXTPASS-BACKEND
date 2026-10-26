@@ -12,33 +12,50 @@ Requisitos, regras de negócio e rotas estão em `../DOCUMENTS` (Requisitos v2.0
 cp .env.example .env          # ajuste os segredos
 npm install                   # também gera o Prisma Client
 docker compose up -d db       # sobe o PostgreSQL
-npm run db:migrate            # aplica as migrações de prisma/migrations
+npm run db:deploy             # aplica as migrações de prisma/migrations
 npm run db:seed               # cria a conta de administrador
+npm run db:demo               # contas e dados de demonstração
 npm run dev                   # http://localhost:3333/health
 ```
 
-**Com o PostgreSQL instalado na máquina (pgAdmin):** no lugar do `docker compose`, rode [prisma/setup-local.sql](prisma/setup-local.sql) no Query Tool do banco `postgres`, uma parte por vez. Ele cria o usuário e o banco `nextpass` que o `.env.example` já espera. Depois siga do `db:migrate` em diante.
+**Com o PostgreSQL instalado na máquina (pgAdmin):** no lugar do `docker compose`, rode [prisma/setup-local.sql](prisma/setup-local.sql) no Query Tool do banco `postgres`, uma parte por vez. Ele cria o usuário e o banco `nextpass` que o `.env.example` já espera. Depois siga do `db:deploy` em diante.
 
-**Sem Docker e sem PostgreSQL instalado:** `npx prisma dev --name nextpass --detach` sobe um PostgreSQL local e mostra a URL `postgres://...`. Coloque essa URL no `DATABASE_URL` do `.env` e siga do `db:migrate` em diante.
+**Sem Docker e sem PostgreSQL instalado:** `npx prisma dev --name nextpass --detach` sobe um PostgreSQL local e mostra a URL `postgres://...`. Coloque essa URL no `DATABASE_URL` do `.env` e siga do `db:deploy` em diante.
+
+A migração `busca_sem_acento` ativa as extensões `unaccent` e `pg_trgm`, que vêm com o PostgreSQL (instalador oficial e imagem Docker). Se ela falhar com "extension is not available", o PostgreSQL foi instalado sem os módulos "contrib": reinstale pelo instalador oficial.
 
 Stack completa em contêineres (banco, migrações e API): `docker compose --profile full up --build`.
 
-### Rotas prontas
+### Rotas (todas em `/api/v1`)
 
-- **Login e cadastro:** `POST /auth/login`, `/auth/refresh` e `/auth/logout`, `POST /atletas`, `POST /olheiros` e `GET /termos`. O cadastro já devolve a sessão (`usuario`, `accessToken`, `refreshToken`).
-- **Feed do atleta:** `GET /avaliacoes` (peneiras e testes futuros, sem o endereço completo) e `GET /perfil/inscricoes?situacao=ativas|participadas`.
-- **Feed do olheiro verificado:** `GET /videos` e `POST /videos/:id/visualizacoes`.
+Cada arquivo `src/modules/*/http/*.routes.ts` começa com a lista das suas rotas, o perfil de acesso e os RFs atendidos.
 
-Os outros módulos só listam as próprias rotas por enquanto.
+| Grupo                     | Rotas                                                                                                                                                                          |
+| ------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Autenticação              | `POST /auth/login`, `/auth/refresh`, `/auth/logout`                                                                                                                            |
+| Cadastro e perfil         | `POST /atletas`, `POST /olheiros`, `GET /termos`, `GET/PATCH/DELETE /perfil`, `POST /perfil/foto`                                                                              |
+| Verificação e vínculo     | `GET/POST /perfil/verificacao`, `POST/GET /vinculos`, `GET /vinculos/pedido`, `POST /responsaveis`                                                                             |
+| Lances                    | `GET/POST /videos`, `GET /perfil/videos`, `PATCH/DELETE /videos/:id`, `POST /videos/:id/visualizacoes`                                                                         |
+| Atletas                   | `GET /atletas`, `GET /atletas/:id`                                                                                                                                             |
+| Avaliações e inscrições   | `GET/POST /avaliacoes`, `GET/PATCH/DELETE /avaliacoes/:id`, `GET /perfil/avaliacoes`, `POST/GET /avaliacoes/:id/inscricoes`, `GET /perfil/inscricoes`, `PATCH /inscricoes/:id` |
+| Convites e notificações   | `POST/GET /convites`, `PATCH /convites/:id`, `GET/PATCH /notificacoes`                                                                                                         |
+| Denúncias e administração | `POST /denuncias`, `GET /admin/verificacoes`, `GET /admin/verificacoes/:id/documento`, `PATCH /admin/verificacoes/:id`, `GET /admin/denuncias`, `PATCH /admin/denuncias/:id`   |
 
 ### Dados de demonstração
 
-`npm run db:demo` recria contas de teste (todas com a senha `demo12345`), peneiras com datas a partir de hoje, inscrições e lances. Ele só mexe em contas `@demo.nextpass.app`.
+`npm run db:demo` recria as contas de teste (todas com a senha `demo12345`), avaliações com datas a partir de hoje, convites, inscrições, avisos e lances. Ele só mexe em contas `@demo.nextpass.app`; rode de novo antes de cada apresentação.
 
-- `atleta@demo.nextpass.app`: atleta de 17 anos, com uma inscrição aguardando o responsável e uma já participada.
-- `olheiro@demo.nextpass.app`: olheiro **já verificado**, que vê o feed de lances.
+- `olheiro@demo.nextpass.app`: Fabrizio Romano (Palmeiras), olheiro **já verificado** e dono de todas as avaliações.
+- `atleta@demo.nextpass.app`: Silas, 17 anos, com responsável, convites pendentes e inscrições.
+- `leandro@demo.nextpass.app`: Leandro, 17 anos, ainda sem responsável.
+- `responsavel@demo.nextpass.app`: Ana, responsável do Silas.
+- `admin@nextpass.app` (`npm run db:seed`): administrador, com a senha do `ADMIN_PASSWORD` do `.env`.
 
-Os vídeos são exemplos de domínio público do MDN e não são de futebol; servem até o upload de lances existir.
+Sem lances reais, o feed usa vídeos de exemplo do MDN (não são de futebol). Para a apresentação, coloque vídeos MP4 de 30 a 60 segundos, gravados com o celular em pé, na pasta `uploads/demo-lances` e rode `npm run db:demo`: eles entram no lugar dos exemplos e continuam lá a cada nova execução.
+
+### Administrador (sem tela, pela API)
+
+O administrador usa a API por um cliente HTTP (ex.: Thunder Client): `POST /auth/login` com `admin@nextpass.app`, depois `GET /admin/verificacoes` (cada pedido traz o link `documento` para abrir o arquivo enviado) e `PATCH /admin/verificacoes/:id` com `{ "status": "APROVADA" }` ou `{ "status": "RECUSADA", "motivoRecusa": "..." }`. As denúncias seguem o mesmo caminho em `/admin/denuncias`.
 
 ## Scripts
 
@@ -92,8 +109,13 @@ src/
 - **Uma inscrição por atleta e avaliação** (`@@unique([avaliacaoId, atletaId])`): o banco garante a RN-07. Uma reinscrição muda o status da linha que já existe.
 - **Taxa em centavos** (`taxaCentavos: Int`) em vez de ponto flutuante (RN-13: a taxa é só informativa).
 - **Tabela `Token`**: guarda só o hash dos tokens de atualização e de redefinição de senha, para o logout invalidar a sessão (RNF-07).
+- **Busca (RNF-16):** ignora acentos e maiúsculas e tolera pequenos erros de digitação com as extensões `unaccent` e `pg_trgm` do PostgreSQL. A regra está em `src/shared/domain/busca.ts` (usada pelos testes) e `src/shared/infra/database/busca-textual.ts` (SQL).
+- **Documentos de verificação (RNF-09):** ficam em `uploads/documentos`, fora das pastas públicas; só o administrador os abre, pela rota `GET /admin/verificacoes/:id/documento`.
 - **Tabelas e campos além da Figura 2:** `Token`, `Usuario.fotoUrl`, `Usuario.termosAceitosEm` (registro do aceite, RF-10), `Vinculo.tokenHash` (link do responsável) e `Avaliacao.local/cidade/uf`. A cidade e a UF ficam separadas do endereço porque aparecem no card, e o endereço completo só depois da confirmação (RN-08).
 
-### Próximas dependências (entram com cada módulo)
+### Fora do escopo do TCC (trabalhos futuros)
 
-`multer` (upload de lances e documentos), `google-auth-library` (RF-04), `nodemailer` ou um provedor de e-mail (RF-05, RF-48), `expo-server-sdk` (push, RF-53) e o SDK do armazenamento de mídia escolhido.
+- **Login com Google (RF-04, RF-12)** e **notificações push (RF-53)**: retirados do escopo pela equipe; os avisos ficam dentro do app (`/notificacoes`). A tabela `Dispositivo` e o campo `Usuario.googleId` já existem no banco para essa evolução.
+- **E-mail de verdade:** o "Esqueceu sua senha?" é simulado no app (RF-05), e o link de confirmação do responsável (RF-48) aparece no terminal da API (`correio-console.ts`). Para enviar de verdade, basta outra implementação da interface `Correio`.
+- **Painel do administrador:** as verificações e as denúncias são analisadas pela API.
+- **Armazenamento em nuvem:** os arquivos ficam na pasta `uploads`; em produção, outra implementação de `Armazenamento` (ex.: S3).

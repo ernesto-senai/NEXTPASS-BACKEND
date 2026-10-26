@@ -5,8 +5,10 @@ import { AppError } from "../../../shared/errors/app-error.ts";
 import type { NotificacaoRepository } from "../../notificacoes/domain/notificacao.ts";
 import {
   FORMATOS_DOCUMENTO,
+  type ArquivoVerificacao,
   type FormatoDocumento,
   type SituacaoVerificacao,
+  TIPO_DA_EXTENSAO,
   type VerificacaoParaAnalise,
   type VerificacaoRepository,
 } from "../domain/verificacao.ts";
@@ -21,10 +23,22 @@ export type EnviarDocumentos = (
   arquivos: { documento: ArquivoEnviado; comprovante?: ArquivoEnviado | undefined },
 ) => Promise<SituacaoVerificacao>;
 
+// Na fila, os arquivos vêm como links da própria API, que só o administrador
+// abre (RNF-09): o caminho interno do armazenamento não sai do servidor.
+export type VerificacaoNaFila = Omit<VerificacaoParaAnalise, "documentoUrl" | "comprovanteUrl"> & {
+  documento: string;
+  comprovante: string | null;
+};
+
 export type ListarVerificacoes = (
   status: StatusVerificacao,
   paginacao: Paginacao,
-) => Promise<Pagina<VerificacaoParaAnalise>>;
+) => Promise<Pagina<VerificacaoNaFila>>;
+
+export type AbrirDocumento = (
+  id: string,
+  arquivo: ArquivoVerificacao,
+) => Promise<{ conteudo: Buffer; tipo: FormatoDocumento }>;
 
 export type AnalisarVerificacao = (
   adminId: string,
@@ -74,10 +88,41 @@ export function criarEnviarDocumentos(deps: {
 export function criarListarVerificacoes(deps: {
   verificacoes: VerificacaoRepository;
 }): ListarVerificacoes {
-  return async (status, paginacao) => ({
-    ...(await deps.verificacoes.listarParaAnalise(status, paginacao)),
-    pagina: paginacao.pagina,
-  });
+  const link = (id: string, arquivo: ArquivoVerificacao) =>
+    `/api/v1/admin/verificacoes/${id}/documento?arquivo=${arquivo}`;
+
+  return async (status, paginacao) => {
+    const { dados, total } = await deps.verificacoes.listarParaAnalise(status, paginacao);
+    return {
+      dados: dados.map(({ documentoUrl: _documento, comprovanteUrl, ...verificacao }) => ({
+        ...verificacao,
+        documento: link(verificacao.id, "documento"),
+        comprovante: comprovanteUrl ? link(verificacao.id, "comprovante") : null,
+      })),
+      total,
+      pagina: paginacao.pagina,
+    };
+  };
+}
+
+// RF-57 e RNF-09: o administrador abre o documento ou o comprovante enviado
+// pelo olheiro, que fica fora das pastas públicas.
+export function criarAbrirDocumento(deps: {
+  verificacoes: VerificacaoRepository;
+  armazenamento: Armazenamento;
+}): AbrirDocumento {
+  const naoEncontrado = () => new AppError("NAO_ENCONTRADO", "Documento não encontrado.");
+
+  return async (id, arquivo) => {
+    const verificacao = await deps.verificacoes.buscar(id);
+    const url = arquivo === "documento" ? verificacao?.documentoUrl : verificacao?.comprovanteUrl;
+    if (!url) throw naoEncontrado();
+
+    const tipo = TIPO_DA_EXTENSAO[url.split(".").at(-1) ?? ""];
+    const conteudo = await deps.armazenamento.ler(url);
+    if (!tipo || !conteudo) throw naoEncontrado();
+    return { conteudo, tipo };
+  };
 }
 
 // RF-57: o administrador aprova ou recusa (com o motivo) e o olheiro é avisado.

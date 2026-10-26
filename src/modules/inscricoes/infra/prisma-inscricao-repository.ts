@@ -1,5 +1,6 @@
 import type { Prisma, PrismaClient } from "../../../generated/prisma/client.ts";
 import { intervalo } from "../../../shared/domain/pagina.ts";
+import { idsQueCombinam } from "../../../shared/infra/database/busca-textual.ts";
 import { perfilCompleto } from "../../atletas/domain/atleta.ts";
 import { paraResumo, selecaoResumo } from "../../avaliacoes/infra/prisma-avaliacao-repository.ts";
 import {
@@ -207,11 +208,12 @@ export function criarInscricaoRepositoryPrisma(prisma: PrismaClient): InscricaoR
       }),
 
     listarInscritos: async (avaliacaoId, busca, paginacao) => {
+      // RNF-16: o nome ignora acentos e tolera pequenos erros.
       const where = {
         avaliacaoId,
         status: { in: [...STATUS_ATIVOS] },
         ...(busca
-          ? { atleta: { usuario: { nome: { contains: busca, mode: "insensitive" as const } } } }
+          ? { atletaId: { in: await idsQueCombinam(prisma, "nomeDoUsuario", busca) } }
           : {}),
       } satisfies Prisma.InscricaoWhereInput;
 

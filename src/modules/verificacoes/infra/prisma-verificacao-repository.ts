@@ -77,7 +77,13 @@ export function criarVerificacaoRepositoryPrisma(prisma: PrismaClient): Verifica
     buscar: (id) =>
       prisma.verificacao.findUnique({
         where: { id },
-        select: { id: true, olheiroId: true, status: true },
+        select: {
+          id: true,
+          olheiroId: true,
+          status: true,
+          documentoUrl: true,
+          comprovanteUrl: true,
+        },
       }),
 
     analisar: async (id, { status, motivoRecusa, adminId, agora }) => {
