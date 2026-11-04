@@ -18,32 +18,35 @@ const prisma = new PrismaClient({ adapter: new PrismaPg({ connectionString: DATA
 const DOMINIO = "@demo.nextpass.app";
 const SENHA = "demo12345";
 
-// Vídeos de domínio público (CC0) do MDN, usados quando não há lances reais.
-// Não são de futebol e duram poucos segundos.
-const VIDEOS_DE_EXEMPLO = [
-  "https://interactive-examples.mdn.mozilla.net/media/cc0-videos/flower.mp4",
-  "https://interactive-examples.mdn.mozilla.net/media/cc0-videos/friday.mp4",
-].map((url) => ({ url, duracaoSeg: 45 }));
-
-// Lances reais para a apresentação: coloque vídeos MP4 ou MOV (30 a 60 s,
-// gravados com o celular em pé) na pasta uploads/demo-lances. Eles entram no
-// lugar dos exemplos, em ordem alfabética, e continuam lá a cada db:demo.
-const PASTA_LANCES = path.join(PASTA_UPLOADS, "demo-lances");
+// Lances da demonstração, servidos pela própria API (sem depender da
+// internet). Vale a primeira pasta com vídeos MP4 ou MOV, em ordem alfabética:
+// - uploads/demo-lances: lances reais da equipe (30 a 60 s, gravados com o
+//   celular em pé), fora do Git;
+// - prisma/demo-lances: lances de exemplo do repositório, animações verticais
+//   de 36 s com as jogadas das legendas abaixo.
+const PASTAS_DE_LANCES = [
+  path.join(PASTA_UPLOADS, "demo-lances"),
+  path.join(import.meta.dirname, "demo-lances"),
+];
 
 async function videosDaDemo() {
-  const arquivos = await readdir(PASTA_LANCES).catch(() => [] as string[]);
-  const videos = arquivos.filter((nome) => /\.(mp4|mov)$/i.test(nome)).sort();
-  if (videos.length === 0) return VIDEOS_DE_EXEMPLO;
+  for (const pasta of PASTAS_DE_LANCES) {
+    const arquivos = await readdir(pasta).catch(() => [] as string[]);
+    const videos = arquivos.filter((nome) => /\.(mp4|mov)$/i.test(nome)).sort();
+    if (videos.length === 0) continue;
 
-  await mkdir(path.join(PASTA_UPLOADS, "videos"), { recursive: true });
-  return Promise.all(
-    videos.map(async (nome, i) => {
-      const destino = `demo-${i + 1}${path.extname(nome).toLowerCase()}`;
-      await copyFile(path.join(PASTA_LANCES, nome), path.join(PASTA_UPLOADS, "videos", destino));
-      const duracao = lerDuracaoDoVideo(await readFile(path.join(PASTA_LANCES, nome)));
-      return { url: `/uploads/videos/${destino}`, duracaoSeg: Math.round(duracao ?? 45) };
-    }),
-  );
+    await mkdir(path.join(PASTA_UPLOADS, "videos"), { recursive: true });
+    const lances = await Promise.all(
+      videos.map(async (nome, i) => {
+        const destino = `demo-${i + 1}${path.extname(nome).toLowerCase()}`;
+        await copyFile(path.join(pasta, nome), path.join(PASTA_UPLOADS, "videos", destino));
+        const duracao = lerDuracaoDoVideo(await readFile(path.join(pasta, nome)));
+        return { url: `/uploads/videos/${destino}`, duracaoSeg: Math.round(duracao ?? 45) };
+      }),
+    );
+    return { pasta: path.relative(process.cwd(), pasta), lances };
+  }
+  throw new Error("Nenhum lance em uploads/demo-lances nem em prisma/demo-lances.");
 }
 
 function emDias(dias: number, hora: number, minuto = 0) {
@@ -304,7 +307,7 @@ async function main() {
   ];
   const videos = await videosDaDemo();
   for (const [i, lance] of lances.entries()) {
-    const { url, duracaoSeg } = videos[i % videos.length]!;
+    const { url, duracaoSeg } = videos.lances[i % videos.lances.length]!;
     const video = await prisma.video.create({
       data: {
         atletaId: lance.atleta.id,
@@ -323,11 +326,7 @@ async function main() {
   }
 
   console.log("Dados de demonstração prontos. Senha de todas as contas:", SENHA);
-  console.log(
-    videos === VIDEOS_DE_EXEMPLO
-      ? "  Lances: vídeos de exemplo (coloque os reais em uploads/demo-lances)"
-      : `  Lances: ${videos.length} vídeo(s) de uploads/demo-lances`,
-  );
+  console.log(`  Lances: ${videos.lances.length} vídeo(s) de ${videos.pasta}`);
   console.log(`  Atleta com responsável: atleta${DOMINIO}`);
   console.log(`  Atleta sem responsável: leandro${DOMINIO}`);
   console.log(`  Olheiro: olheiro${DOMINIO} (verificado)`);
