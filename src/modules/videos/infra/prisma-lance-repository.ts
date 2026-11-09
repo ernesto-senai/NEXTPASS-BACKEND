@@ -9,6 +9,7 @@ const camposDoLance = {
   localizacao: true,
   duracaoSeg: true,
   destaque: true,
+  horizontal: true,
   criadoEm: true,
 } satisfies Prisma.VideoSelect;
 
@@ -66,6 +67,7 @@ export function criarLanceRepositoryPrisma(prisma: PrismaClient): LanceRepositor
             legenda: true,
             localizacao: true,
             duracaoSeg: true,
+            horizontal: true,
             criadoEm: true,
             _count: { select: { visualizacoes: true } },
             atleta: { select: { usuario: { select: { id: true, nome: true, fotoUrl: true } } } },

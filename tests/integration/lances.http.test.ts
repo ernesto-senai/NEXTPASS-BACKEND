@@ -69,6 +69,26 @@ describe("POST /videos (RF-25)", () => {
     });
   });
 
+  it("marca o vídeo deitado como horizontal, e o feed recebe essa informação", async () => {
+    const emPe = await publicar(atleta.token, {
+      conteudo: videoMp4(45, { imagem: { largura: 720, altura: 1280 } }),
+    });
+    const deitado = await publicar(atleta.token, {
+      conteudo: videoMp4(45, { imagem: { largura: 1024, altura: 576 } }),
+    });
+
+    expect(emPe.body.horizontal).toBe(false);
+    expect(deitado.body.horizontal).toBe(true);
+
+    memoria.olheirosVerificados.add(olheiro.id);
+    const feed = await request(app)
+      .get("/api/v1/videos")
+      .set("Authorization", `Bearer ${olheiro.token}`);
+    const noFeed = (id: string) => feed.body.dados.find((l: { id: string }) => l.id === id);
+    expect(noFeed(emPe.body.id).horizontal).toBe(false);
+    expect(noFeed(deitado.body.id).horizontal).toBe(true);
+  });
+
   it("aceita lance sem legenda nem localização, e MOV do iPhone", async () => {
     const resposta = await publicar(atleta.token, {
       conteudo: videoMp4(30, { versao: 1 }),

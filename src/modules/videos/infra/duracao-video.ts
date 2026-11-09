@@ -26,7 +26,7 @@ export function lerDuracaoDoVideo(arquivo: Buffer): number | null {
 // Procura uma caixa entre as posições inicio e fim. Cada caixa começa com o
 // tamanho (4 bytes) e o tipo (4 letras); tamanho 1 indica um tamanho de 64 bits
 // logo depois, e 0 indica que a caixa vai até o fim.
-function acharCaixa(arquivo: Buffer, tipo: string, inicio: number, fim: number) {
+export function acharCaixa(arquivo: Buffer, tipo: string, inicio: number, fim: number) {
   let posicao = inicio;
 
   while (posicao + 8 <= fim) {

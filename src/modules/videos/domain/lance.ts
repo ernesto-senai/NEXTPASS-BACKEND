@@ -16,10 +16,15 @@ export interface Lance {
   localizacao: string | null;
   duracaoSeg: number;
   destaque: boolean;
+  // Vídeo deitado: o feed mostra inteiro, sem cortar.
+  horizontal: boolean;
   criadoEm: Date;
 }
 
-export type NovoLance = Pick<Lance, "url" | "legenda" | "localizacao" | "duracaoSeg"> & {
+export type NovoLance = Pick<
+  Lance,
+  "url" | "legenda" | "localizacao" | "duracaoSeg" | "horizontal"
+> & {
   atletaId: string;
 };
 
@@ -40,6 +45,7 @@ export interface LanceDoFeed {
   legenda: string | null;
   localizacao: string | null;
   duracaoSeg: number;
+  horizontal: boolean;
   criadoEm: Date;
   visualizacoes: number;
   atleta: { id: string; nome: string; fotoUrl: string | null };

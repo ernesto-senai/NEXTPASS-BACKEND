@@ -104,6 +104,7 @@ import { criarPublicarLance } from "../modules/videos/application/publicar-lance
 import type { LanceRepository } from "../modules/videos/domain/lance.ts";
 import type { VideosCasosDeUso } from "../modules/videos/http/videos.routes.ts";
 import { lerDuracaoDoVideo } from "../modules/videos/infra/duracao-video.ts";
+import { videoEhHorizontal } from "../modules/videos/infra/orientacao-video.ts";
 import { criarLanceRepositoryPrisma } from "../modules/videos/infra/prisma-lance-repository.ts";
 import {
   criarAceitarVinculo,
@@ -213,7 +214,11 @@ export function montarDependencias(adaptadores: Adaptadores): Dependencias {
     },
     videos: {
       listarFeedDeLances: criarListarFeedDeLances(adaptadores),
-      publicarLance: criarPublicarLance({ ...adaptadores, lerDuracao: lerDuracaoDoVideo }),
+      publicarLance: criarPublicarLance({
+        ...adaptadores,
+        lerDuracao: lerDuracaoDoVideo,
+        ehHorizontal: videoEhHorizontal,
+      }),
       listarMeusLances: criarListarMeusLances(adaptadores),
       editarLance: criarEditarLance(adaptadores),
       excluirLance: criarExcluirLance(adaptadores),

@@ -176,6 +176,7 @@ describe("GET /videos (RF-32)", () => {
     legenda: "Gol de falta",
     localizacao: "São Paulo, SP",
     duracaoSeg: 45,
+    horizontal: false,
     criadoEm: daqui(dias),
     atleta: { id: atleta.id, nome: "Silas Rodrigues", fotoUrl: null },
   });

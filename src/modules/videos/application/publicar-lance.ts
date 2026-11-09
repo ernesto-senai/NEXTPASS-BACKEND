@@ -18,11 +18,13 @@ export interface DadosDoLance {
 export type PublicarLance = (dados: DadosDoLance) => Promise<Lance>;
 
 // RF-25 e RF-29: o atleta publica um lance com legenda e localização. A
-// duração vem do próprio arquivo, não do app, para valer a RN-09.
+// duração vem do próprio arquivo, não do app, para valer a RN-09; a orientação
+// também, para o feed saber como mostrar o vídeo.
 export function criarPublicarLance(deps: {
   lances: LanceRepository;
   armazenamento: Armazenamento;
   lerDuracao: (video: Buffer) => number | null;
+  ehHorizontal: (video: Buffer) => boolean;
 }): PublicarLance {
   return async ({ atletaId, video, legenda, localizacao }) => {
     const duracao = deps.lerDuracao(video.conteudo);
@@ -49,6 +51,7 @@ export function criarPublicarLance(deps: {
         atletaId,
         url,
         duracaoSeg,
+        horizontal: deps.ehHorizontal(video.conteudo),
         legenda: legenda || null,
         localizacao: localizacao || null,
       });

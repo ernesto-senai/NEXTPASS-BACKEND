@@ -8,6 +8,7 @@ import { PrismaPg } from "@prisma/adapter-pg";
 import bcrypt from "bcryptjs";
 import { PrismaClient } from "../src/generated/prisma/client.ts";
 import { lerDuracaoDoVideo } from "../src/modules/videos/infra/duracao-video.ts";
+import { videoEhHorizontal } from "../src/modules/videos/infra/orientacao-video.ts";
 import { PASTA_UPLOADS } from "../src/shared/infra/storage/armazenamento-local.ts";
 
 const { DATABASE_URL } = process.env;
@@ -40,8 +41,12 @@ async function videosDaDemo() {
       videos.map(async (nome, i) => {
         const destino = `demo-${i + 1}${path.extname(nome).toLowerCase()}`;
         await copyFile(path.join(pasta, nome), path.join(PASTA_UPLOADS, "videos", destino));
-        const duracao = lerDuracaoDoVideo(await readFile(path.join(pasta, nome)));
-        return { url: `/uploads/videos/${destino}`, duracaoSeg: Math.round(duracao ?? 45) };
+        const conteudo = await readFile(path.join(pasta, nome));
+        return {
+          url: `/uploads/videos/${destino}`,
+          duracaoSeg: Math.round(lerDuracaoDoVideo(conteudo) ?? 45),
+          horizontal: videoEhHorizontal(conteudo),
+        };
       }),
     );
     return { pasta: path.relative(process.cwd(), pasta), lances };
@@ -307,12 +312,13 @@ async function main() {
   ];
   const videos = await videosDaDemo();
   for (const [i, lance] of lances.entries()) {
-    const { url, duracaoSeg } = videos.lances[i % videos.lances.length]!;
+    const { url, duracaoSeg, horizontal } = videos.lances[i % videos.lances.length]!;
     const video = await prisma.video.create({
       data: {
         atletaId: lance.atleta.id,
         url,
         duracaoSeg,
+        horizontal,
         legenda: lance.legenda,
         localizacao: "São Paulo, SP",
         // O primeiro lance de cada atleta fica no carrossel do perfil.

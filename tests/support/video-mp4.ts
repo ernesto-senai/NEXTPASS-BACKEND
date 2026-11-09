@@ -6,10 +6,35 @@ const caixa = (tipo: string, conteudo: Buffer) => {
   return Buffer.concat([cabecalho, conteudo]);
 };
 
+// Faixa do vídeo (trak > tkhd), com a matriz de rotação e o tamanho em ponto fixo
+// (0x10000 vale 1). Girar 90° troca a diagonal da matriz pela outra.
+const faixa = (versao: 0 | 1, largura: number, altura: number, girado = false) => {
+  const matriz = versao === 1 ? 52 : 40;
+  const tkhd = Buffer.alloc(matriz + 44);
+  tkhd.writeUInt8(versao, 0);
+  tkhd.writeInt32BE(girado ? 0 : 0x10000, matriz);
+  tkhd.writeInt32BE(girado ? 0x10000 : 0, matriz + 4);
+  tkhd.writeInt32BE(girado ? -0x10000 : 0, matriz + 12);
+  tkhd.writeInt32BE(girado ? 0 : 0x10000, matriz + 16);
+  tkhd.writeUInt32BE(largura * 0x10000, matriz + 36);
+  tkhd.writeUInt32BE(altura * 0x10000, matriz + 40);
+  return caixa("trak", caixa("tkhd", tkhd));
+};
+
 // MP4 mínimo para os testes: só o cabeçalho com a duração (moov > mvhd), na
-// escala de 1000 unidades por segundo. A caixa moov vem depois do vídeo (mdat),
-// como nos arquivos gravados pelo celular.
-export function videoMp4(segundos: number, { versao = 0 }: { versao?: 0 | 1 } = {}): Buffer {
+// escala de 1000 unidades por segundo, e, se pedido, as faixas de áudio (sem
+// tamanho) e de imagem. A caixa moov vem depois do vídeo (mdat), como nos
+// arquivos gravados pelo celular.
+export function videoMp4(
+  segundos: number,
+  {
+    versao = 0,
+    imagem,
+  }: {
+    versao?: 0 | 1;
+    imagem?: { largura: number; altura: number; girado?: boolean };
+  } = {},
+): Buffer {
   const mvhd = Buffer.alloc(versao === 1 ? 32 : 20);
   mvhd.writeUInt8(versao, 0);
   if (versao === 1) {
@@ -23,6 +48,14 @@ export function videoMp4(segundos: number, { versao = 0 }: { versao?: 0 | 1 } = 
   return Buffer.concat([
     caixa("ftyp", Buffer.from("isom")),
     caixa("mdat", Buffer.alloc(64)),
-    caixa("moov", caixa("mvhd", mvhd)),
+    caixa(
+      "moov",
+      Buffer.concat([
+        caixa("mvhd", mvhd),
+        ...(imagem
+          ? [faixa(versao, 0, 0), faixa(versao, imagem.largura, imagem.altura, imagem.girado)]
+          : []),
+      ]),
+    ),
   ]);
 }

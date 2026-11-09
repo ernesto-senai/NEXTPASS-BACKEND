@@ -235,6 +235,8 @@ model Video {
   legenda      String?
   localizacao  String?
   destaque     Boolean  @default(false)
+  // Vídeo deitado: o feed mostra inteiro, sem cortar. Lido do arquivo no envio.
+  horizontal   Boolean  @default(false)
   criadoEm     DateTime @default(now())
   atualizadoEm DateTime @updatedAt
 
