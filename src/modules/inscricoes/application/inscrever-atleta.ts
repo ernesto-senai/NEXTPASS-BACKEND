@@ -10,8 +10,7 @@ export type InscreverAtleta = (dados: {
 }) => Promise<InscricaoCriada>;
 
 // RF-21 e RF-27: inscrição pelo botão da avaliação ou pelo aceite do convite.
-// Adulto já sai confirmado e ocupa a vaga; menor de 18 anos espera a aprovação
-// do responsável vinculado (RN-03).
+// Adulto já entra confirmado. Menor espera a aprovação do responsável (RN-03).
 export function criarInscreverAtleta(deps: {
   inscricoes: InscricaoRepository;
   notificacoes: NotificacaoRepository;

@@ -34,9 +34,8 @@ function exigirAtiva({ status }: InscricaoParaAlteracao) {
   if (!inscricaoAtiva(status)) throw encerrada("Esta inscrição já foi encerrada.");
 }
 
-// Uma rota só para as mudanças de status da inscrição (Endpoints v2.0):
-// RF-22 o atleta cancela, RF-46 o olheiro dono remove (RN-11) e RF-50 o
-// responsável aprova ou recusa (RN-03). Só vale antes da data da avaliação.
+// Mudanças de status da inscrição, antes da data da avaliação: atleta cancela (RF-22),
+// olheiro dono remove (RF-46, RN-11) e responsável aprova ou recusa (RF-50, RN-03).
 export function criarAlterarInscricao(deps: Deps): AlterarInscricao {
   const agora = deps.agora ?? (() => new Date());
 

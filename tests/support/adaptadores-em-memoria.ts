@@ -112,7 +112,7 @@ export function criarAdaptadoresEmMemoria() {
   const avaliacoes: AvaliacaoMemoria[] = [];
   const inscricoes: InscricaoMemoria[] = [];
   const lances: (Omit<LanceDoFeed, "visualizacoes"> & { destaque?: boolean })[] = [];
-  const visualizacoes: { videoId: string; olheiroId: string }[] = [];
+  const visualizacoes: { videoId: string; olheiroId: string; criadoEm: Date }[] = [];
   const olheirosVerificados = new Set<string>();
   // Perfis completos de atletas, como o banco devolve para a busca.
   const atletas: AtletaPerfil[] = [];
@@ -563,19 +563,25 @@ export function criarAdaptadoresEmMemoria() {
           1,
         );
       },
-      listarFeed: async (paginacao) =>
-        paginar(
-          [...lances]
-            .sort((a, b) => b.criadoEm.getTime() - a.criadoEm.getTime())
-            .map((l) => ({
-              ...l,
-              visualizacoes: visualizacoes.filter((v) => v.videoId === l.id).length,
-            })),
-          paginacao,
-        ),
+      listarCandidatosDoFeed: async (olheiroId, ate) =>
+        lances
+          .filter((l) => l.criadoEm <= ate)
+          .map((l) => ({
+            id: l.id,
+            visto: visualizacoes.some(
+              (v) => v.videoId === l.id && v.olheiroId === olheiroId && v.criadoEm < ate,
+            ),
+          })),
+      buscarDoFeed: async (ids) =>
+        lances
+          .filter((l) => ids.includes(l.id))
+          .map((l) => ({
+            ...l,
+            visualizacoes: visualizacoes.filter((v) => v.videoId === l.id).length,
+          })),
       existe: async (id) => lances.some((l) => l.id === id),
       registrarVisualizacao: async (videoId, olheiroId) => {
-        visualizacoes.push({ videoId, olheiroId });
+        visualizacoes.push({ videoId, olheiroId, criadoEm: new Date() });
       },
     },
 

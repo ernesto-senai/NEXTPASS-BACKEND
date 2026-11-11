@@ -9,7 +9,7 @@ import { authorize } from "../../../shared/http/middlewares/authorize.ts";
 import { paginacaoSchema } from "../../../shared/http/pagination.ts";
 import type { AnalisarDenuncia, Denunciar, ListarDenuncias } from "../application/denuncias.ts";
 
-// Denúncias e moderação (Endpoints v2.0, seções 5.10 e 5.11)
+// Denúncias e moderação
 // POST   /denuncias               Autenticado      RF-54 (ECA Digital, art. 28)
 // GET    /admin/denuncias         Administrador    RF-58
 // PATCH  /admin/denuncias/:id     Administrador    RF-58

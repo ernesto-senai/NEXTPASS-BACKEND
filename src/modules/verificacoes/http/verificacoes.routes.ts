@@ -21,7 +21,7 @@ import {
   TAMANHO_MAXIMO_DOCUMENTO_MB,
 } from "../domain/verificacao.ts";
 
-// Verificação do olheiro (Endpoints v2.0, seções 5.3 e 5.10)
+// Verificação do olheiro
 // POST   /perfil/verificacao      Olheiro          RF-16 (multipart, armazenamento privado, RNF-09)
 // GET    /perfil/verificacao      Olheiro          RF-17
 // GET    /admin/verificacoes      Administrador    RF-57

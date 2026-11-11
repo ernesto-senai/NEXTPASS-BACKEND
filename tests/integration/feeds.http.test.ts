@@ -190,16 +190,58 @@ describe("GET /videos (RF-32)", () => {
     expect(resposta.body.erro.codigo).toBe("OLHEIRO_NAO_VERIFICADO");
   });
 
-  it("mostra os lances mais recentes primeiro para o olheiro verificado", async () => {
-    memoria.olheirosVerificados.add(olheiro.id);
-    memoria.lances.push(lance("antigo", -2), lance("recente", -1));
+  const feed = (consulta = "") =>
+    request(app).get(`/api/v1/videos${consulta}`).set("Authorization", `Bearer ${olheiro.token}`);
+  const ids = (resposta: { body: { dados: { id: string }[] } }) =>
+    resposta.body.dados.map((l) => l.id);
 
-    const resposta = await request(app)
-      .get("/api/v1/videos")
-      .set("Authorization", `Bearer ${olheiro.token}`);
+  it("mostra primeiro os lances que o olheiro ainda não viu, em ordem aleatória", async () => {
+    memoria.olheirosVerificados.add(olheiro.id);
+    memoria.lances.push(lance("visto", -3), lance("novo-1", -2), lance("novo-2", -1));
+    memoria.visualizacoes.push({ videoId: "visto", olheiroId: olheiro.id, criadoEm: daqui(-1) });
+
+    const resposta = await feed(`?semente=${Date.now()}`);
 
     expect(resposta.status).toBe(200);
-    expect(resposta.body.dados.map((l: { id: string }) => l.id)).toEqual(["recente", "antigo"]);
+    expect(ids(resposta).slice(0, 2).sort()).toEqual(["novo-1", "novo-2"]);
+    expect(ids(resposta)[2]).toBe("visto");
+  });
+
+  it("com a mesma semente, as páginas seguem a mesma ordem sem repetir lances", async () => {
+    memoria.olheirosVerificados.add(olheiro.id);
+    memoria.lances.push(...["a", "b", "c", "d", "e"].map((id) => lance(id, -1)));
+    const semente = Date.now();
+
+    const paginas = await Promise.all(
+      [1, 2, 3].map((pagina) => feed(`?semente=${semente}&limite=2&pagina=${pagina}`)),
+    );
+    const inteira = await feed(`?semente=${semente}&limite=5`);
+
+    expect(paginas.flatMap(ids)).toEqual(ids(inteira));
+    expect(new Set(ids(inteira)).size).toBe(5);
+    expect(paginas[0]!.body).toMatchObject({ total: 5, pagina: 1, semente });
+  });
+
+  it("lance publicado depois de abrir o feed só aparece quando o olheiro atualiza", async () => {
+    memoria.olheirosVerificados.add(olheiro.id);
+    const abertura = Date.now();
+    memoria.lances.push(lance("antes", -1), {
+      ...lance("depois", 0),
+      criadoEm: new Date(abertura + 60_000),
+    });
+
+    expect(ids(await feed(`?semente=${abertura}`))).toEqual(["antes"]);
+    expect(ids(await feed(`?semente=${abertura + 120_000}`)).sort()).toEqual(["antes", "depois"]);
+  });
+
+  it("sem semente, a API sorteia uma e devolve na resposta", async () => {
+    memoria.olheirosVerificados.add(olheiro.id);
+
+    const resposta = await feed();
+
+    expect(resposta.status).toBe(200);
+    expect(resposta.body.semente).toBeGreaterThan(0);
+    expect((await feed("?semente=abc")).status).toBe(400);
   });
 
   it("registra visualizações (RF-33)", async () => {

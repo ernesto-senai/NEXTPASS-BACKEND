@@ -12,9 +12,8 @@ export function authorize(...tipos: TipoUsuario[]): RequestHandler {
   };
 }
 
-// RN-04: olheiro só assiste lances, busca atletas, cria avaliações e envia
-// convites depois de verificado. A consulta vai ao banco a cada chamada para a
-// aprovação valer na hora; nos testes, ela é trocada por uma versão em memória.
+// RN-04: só olheiro verificado assiste lances, busca atletas, cria avaliações e convida.
+// Consulta o banco em toda chamada para a aprovação valer na hora.
 export function exigirOlheiroVerificado(
   estaVerificado: (usuarioId: string) => Promise<boolean>,
 ): RequestHandler {

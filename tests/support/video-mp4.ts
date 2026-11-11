@@ -21,10 +21,8 @@ const faixa = (versao: 0 | 1, largura: number, altura: number, girado = false) =
   return caixa("trak", caixa("tkhd", tkhd));
 };
 
-// MP4 mínimo para os testes: só o cabeçalho com a duração (moov > mvhd), na
-// escala de 1000 unidades por segundo, e, se pedido, as faixas de áudio (sem
-// tamanho) e de imagem. A caixa moov vem depois do vídeo (mdat), como nos
-// arquivos gravados pelo celular.
+// MP4 mínimo para os testes: cabeçalho com a duração (moov > mvhd) e, se pedido,
+// faixas de áudio e de imagem. O moov vem depois do mdat, como no celular.
 export function videoMp4(
   segundos: number,
   {

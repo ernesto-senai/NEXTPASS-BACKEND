@@ -12,8 +12,8 @@ import type { EditarLance, ExcluirLance, ListarMeusLances } from "../application
 import type { PublicarLance } from "../application/publicar-lance.ts";
 import { FORMATOS_LANCE, type FormatoLance, TAMANHO_MAXIMO_LANCE_MB } from "../domain/lance.ts";
 
-// Lances (Endpoints v2.0, seção 5.4)
-// GET    /videos                  Olheiro verificado  RF-32
+// Lances
+// GET    /videos                  Olheiro verificado  RF-32 (ordem aleatória, ?semente=)
 // POST   /videos                  Atleta              RF-25, RF-29 (MP4/MOV até 50 MB, 30 a 60 s, RN-09)
 // GET    /perfil/videos           Atleta              RF-28
 // PATCH  /videos/:id              Atleta (dono)       RF-31
@@ -30,6 +30,12 @@ export interface VideosCasosDeUso {
 }
 
 const idSchema = z.object({ id: z.uuid("Lance não encontrado.") });
+
+// RF-32: o app manda a semente (Date.now() quando o feed abriu) para as páginas seguirem
+// a mesma ordem. Sem ela, a API sorteia uma e devolve na resposta.
+const feedSchema = paginacaoSchema.extend({
+  semente: z.coerce.number().int().min(1).max(8_640_000_000_000_000).optional(),
+});
 
 // Campos de texto que acompanham o vídeo no multipart/form-data.
 const novoLanceSchema = z.object({
@@ -68,7 +74,9 @@ export function criarVideosRoutes(
   const rotas = Router();
 
   rotas.get("/videos", authenticate, exigirOlheiroVerificado, async (req, res) => {
-    res.json(await casos.listarFeedDeLances(paginacaoSchema.parse(req.query)));
+    const { semente = Date.now(), ...paginacao } = feedSchema.parse(req.query);
+    const olheiroId = usuarioDaRequisicao(req).id;
+    res.json(await casos.listarFeedDeLances({ ...paginacao, semente, olheiroId }));
   });
 
   rotas.post("/videos", authenticate, authorize("ATLETA"), receberVideo, async (req, res) => {

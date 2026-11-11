@@ -7,7 +7,7 @@ import {
 import { paginacaoSchema } from "../../../shared/http/pagination.ts";
 import type { ListarNotificacoes, MarcarComoLidas } from "../application/notificacoes.ts";
 
-// Notificações (Endpoints v2.0, seção 5.9)
+// Notificações
 // GET    /notificacoes            Autenticado      RF-47, RF-52
 // PATCH  /notificacoes            Autenticado      RF-52
 

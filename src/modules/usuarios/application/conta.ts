@@ -20,6 +20,7 @@ export function criarTrocarFoto(deps: {
     const fotoUrl = await deps.armazenamento.salvar({
       pasta: "fotos",
       extensao: FORMATOS_FOTO[formato],
+      tipo: formato,
       conteudo,
     });
     const anterior = await deps.perfis.atualizarFoto(usuarioId, fotoUrl);

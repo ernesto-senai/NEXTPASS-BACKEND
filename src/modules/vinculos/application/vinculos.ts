@@ -71,9 +71,8 @@ async function pedidoValido(deps: Deps, token: string) {
   return pedido;
 }
 
-// RF-15 e RN-03: o atleta menor indica o responsável, que recebe por e-mail
-// um link para criar a conta (ou entrar) e confirmar o vínculo. Pedir de novo
-// envia um link novo.
+// RF-15 e RN-03: o atleta menor indica o responsável, que recebe um link para
+// criar a conta (ou entrar) e confirmar o vínculo. Pedir de novo gera outro link.
 export function criarPedirVinculo(deps: Deps): PedirVinculo {
   const agora = deps.agora ?? (() => new Date());
 

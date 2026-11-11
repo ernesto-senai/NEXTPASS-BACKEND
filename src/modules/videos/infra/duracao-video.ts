@@ -1,7 +1,5 @@
-// Lê a duração, em segundos, gravada no cabeçalho de arquivos MP4 e MOV, sem
-// depender de ffmpeg. Os dois formatos guardam os dados em "caixas"; a duração
-// fica na caixa moov > mvhd, que pode vir antes ou depois do vídeo em si.
-// Devolve null se o arquivo não tiver esse cabeçalho (não é um vídeo válido).
+// Lê a duração do vídeo (MP4/MOV) no cabeçalho, na caixa moov > mvhd, sem ffmpeg.
+// Retorna null se não achar o cabeçalho.
 export function lerDuracaoDoVideo(arquivo: Buffer): number | null {
   try {
     const moov = acharCaixa(arquivo, "moov", 0, arquivo.length);
@@ -23,9 +21,8 @@ export function lerDuracaoDoVideo(arquivo: Buffer): number | null {
   }
 }
 
-// Procura uma caixa entre as posições inicio e fim. Cada caixa começa com o
-// tamanho (4 bytes) e o tipo (4 letras); tamanho 1 indica um tamanho de 64 bits
-// logo depois, e 0 indica que a caixa vai até o fim.
+// Procura uma caixa entre inicio e fim. Cada caixa tem tamanho (4 bytes) e tipo (4 letras).
+// Tamanho 1 indica 64 bits logo depois, e 0 indica que vai até o fim.
 export function acharCaixa(arquivo: Buffer, tipo: string, inicio: number, fim: number) {
   let posicao = inicio;
 

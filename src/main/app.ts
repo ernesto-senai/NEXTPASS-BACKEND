@@ -15,6 +15,9 @@ z.config(z.locales.pt());
 
 export function createApp(deps: Dependencias = criarDependencias()) {
   const app = express();
+  // Publicado no Render, os pedidos passam por um proxy. Assim o limite de tentativas
+  // de login (RNF-08) vê o IP de quem acessa, e não o do proxy.
+  if (env.NODE_ENV === "production") app.set("trust proxy", 1);
 
   app.use(helmet());
   app.use(cors({ origin: env.CORS_ORIGINS }));
@@ -30,16 +33,18 @@ export function createApp(deps: Dependencias = criarDependencias()) {
     res.json({ status: "ok" });
   });
 
-  // Lances (RF-25) e fotos de perfil (RF-14), com nome de arquivo aleatório. Só
-  // essas pastas são públicas: documentos de verificação ficam fora (RNF-09).
-  // A política "cross-origin" deixa o app web, em outra porta, mostrar os arquivos.
-  for (const pasta of ["videos", "fotos"]) {
-    app.use(
-      `/uploads/${pasta}`,
-      express.static(path.join(PASTA_UPLOADS, pasta), {
-        setHeaders: (res) => res.setHeader("Cross-Origin-Resource-Policy", "cross-origin"),
-      }),
-    );
+  // Só as pastas de lances (RF-25) e fotos (RF-14) são públicas, com nome de arquivo
+  // aleatório; documentos não (RNF-09). "cross-origin" para o app web mostrar os arquivos.
+  // Com STORAGE_DRIVER=s3, quem entrega os arquivos é o serviço de armazenamento.
+  if (env.STORAGE_DRIVER === "local") {
+    for (const pasta of ["videos", "fotos"]) {
+      app.use(
+        `/uploads/${pasta}`,
+        express.static(path.join(PASTA_UPLOADS, pasta), {
+          setHeaders: (res) => res.setHeader("Cross-Origin-Resource-Policy", "cross-origin"),
+        }),
+      );
+    }
   }
 
   app.use("/api/v1", criarRotas(deps));

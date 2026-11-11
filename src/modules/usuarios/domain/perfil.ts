@@ -55,7 +55,7 @@ export interface DadosDoAtleta {
   nacionalidade: string;
 }
 
-// RF-14: formatos aceitos para a foto do perfil (tipo MIME → extensão).
+// RF-14: formatos aceitos para a foto do perfil (tipo MIME e extensão).
 export const FORMATOS_FOTO = {
   "image/jpeg": "jpg",
   "image/png": "png",

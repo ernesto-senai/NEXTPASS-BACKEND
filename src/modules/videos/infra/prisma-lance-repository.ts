@@ -52,40 +52,42 @@ export function criarLanceRepositoryPrisma(prisma: PrismaClient): LanceRepositor
       await prisma.video.delete({ where: { id } });
     },
 
-    listarFeed: async (paginacao) => {
-      // Lances de contas suspensas pela moderação somem do feed.
-      const where = {
-        atleta: { usuario: { status: "ATIVO" } },
-      } satisfies Prisma.VideoWhereInput;
-
-      const [linhas, total] = await prisma.$transaction([
-        prisma.video.findMany({
-          where,
-          select: {
-            id: true,
-            url: true,
-            legenda: true,
-            localizacao: true,
-            duracaoSeg: true,
-            horizontal: true,
-            criadoEm: true,
-            _count: { select: { visualizacoes: true } },
-            atleta: { select: { usuario: { select: { id: true, nome: true, fotoUrl: true } } } },
+    listarCandidatosDoFeed: async (olheiroId, ate) => {
+      const linhas = await prisma.video.findMany({
+        // Lances de contas suspensas pela moderação somem do feed.
+        where: { atleta: { usuario: { status: "ATIVO" } }, criadoEm: { lte: ate } },
+        select: {
+          id: true,
+          visualizacoes: {
+            where: { olheiroId, criadoEm: { lt: ate } },
+            select: { id: true },
+            take: 1,
           },
-          orderBy: { criadoEm: "desc" },
-          ...intervalo(paginacao),
-        }),
-        prisma.video.count({ where }),
-      ]);
+        },
+      });
+      return linhas.map(({ id, visualizacoes }) => ({ id, visto: visualizacoes.length > 0 }));
+    },
 
-      return {
-        dados: linhas.map(({ _count, atleta, ...lance }) => ({
-          ...lance,
-          visualizacoes: _count.visualizacoes,
-          atleta: atleta.usuario,
-        })),
-        total,
-      };
+    buscarDoFeed: async (ids) => {
+      const linhas = await prisma.video.findMany({
+        where: { id: { in: ids } },
+        select: {
+          id: true,
+          url: true,
+          legenda: true,
+          localizacao: true,
+          duracaoSeg: true,
+          horizontal: true,
+          criadoEm: true,
+          _count: { select: { visualizacoes: true } },
+          atleta: { select: { usuario: { select: { id: true, nome: true, fotoUrl: true } } } },
+        },
+      });
+      return linhas.map(({ _count, atleta, ...lance }) => ({
+        ...lance,
+        visualizacoes: _count.visualizacoes,
+        atleta: atleta.usuario,
+      }));
     },
 
     existe: async (id) => (await prisma.video.count({ where: { id } })) > 0,

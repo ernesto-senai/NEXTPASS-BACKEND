@@ -21,6 +21,7 @@
     "db:deploy": "prisma migrate deploy",
     "db:seed": "prisma db seed",
     "db:demo": "tsx prisma/demo.ts",
+    "nuvem:testar": "tsx scripts/testar-nuvem.ts",
     "db:studio": "prisma studio",
     "postinstall": "prisma generate"
   },
@@ -30,6 +31,7 @@
   },
   "license": "UNLICENSED",
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.1166.0",
     "@prisma/adapter-pg": "^7.10.0",
     "@prisma/client": "^7.10.0",
     "bcryptjs": "^3.0.3",
@@ -62,5 +64,10 @@
     "typescript": "~6.0.3",
     "typescript-eslint": "^8.70.1",
     "vitest": "^5.0.1"
+  },
+  "allowScripts": {
+    "@prisma/engines@7.10.1": true,
+    "esbuild@0.28.2": true,
+    "prisma@7.10.1": true
   }
 }

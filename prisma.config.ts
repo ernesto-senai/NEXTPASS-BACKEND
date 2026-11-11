@@ -7,9 +7,8 @@ export default defineConfig({
     path: "prisma/migrations",
     seed: "tsx prisma/seed.ts",
   },
-  // process.env em vez de env(): assim `prisma generate` (postinstall) roda
-  // num clone novo, antes de existir o .env. Só os comandos de migração
-  // precisam do DATABASE_URL.
+  // process.env em vez de env() para o prisma generate (postinstall) funcionar
+  // antes de existir o .env. Só as migrações precisam do DATABASE_URL.
   datasource: {
     url: process.env.DATABASE_URL,
   },

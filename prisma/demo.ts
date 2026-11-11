@@ -1,30 +1,23 @@
-// Dados de demonstração para a apresentação (veja o ROTEIRO-APRESENTACAO.md).
-// Recria tudo a cada execução (as datas são relativas a hoje) e só mexe nas
-// contas @demo.nextpass.app. Senha de todas as contas: demo12345.
-import "dotenv/config";
-import { copyFile, mkdir, readdir, readFile } from "node:fs/promises";
+// Dados de demonstração para a apresentação. Recria tudo a cada execução (datas a
+// partir de hoje) e só mexe nas contas @demo.nextpass.app. Senha: demo12345.
+import { readdir, readFile } from "node:fs/promises";
 import path from "node:path";
-import { PrismaPg } from "@prisma/adapter-pg";
 import bcrypt from "bcryptjs";
-import { PrismaClient } from "../src/generated/prisma/client.ts";
+import { env } from "../src/config/env.ts";
 import { lerDuracaoDoVideo } from "../src/modules/videos/infra/duracao-video.ts";
 import { videoEhHorizontal } from "../src/modules/videos/infra/orientacao-video.ts";
+import { prisma } from "../src/shared/infra/database/prisma.ts";
+import { criarArmazenamentoDoAmbiente } from "../src/shared/infra/storage/armazenamento-do-ambiente.ts";
 import { PASTA_UPLOADS } from "../src/shared/infra/storage/armazenamento-local.ts";
 
-const { DATABASE_URL } = process.env;
-if (!DATABASE_URL) throw new Error("Defina DATABASE_URL no .env.");
-
-const prisma = new PrismaClient({ adapter: new PrismaPg({ connectionString: DATABASE_URL }) });
+// Com STORAGE_DRIVER=s3, os vídeos da demonstração vão para a internet, como os do app.
+const armazenamento = criarArmazenamentoDoAmbiente();
 
 const DOMINIO = "@demo.nextpass.app";
 const SENHA = "demo12345";
 
-// Lances da demonstração, servidos pela própria API (sem depender da
-// internet). Vale a primeira pasta com vídeos MP4 ou MOV, em ordem alfabética:
-// - uploads/demo-lances: lances reais da equipe (30 a 60 s, gravados com o
-//   celular em pé), fora do Git;
-// - prisma/demo-lances: lances de exemplo do repositório, animações verticais
-//   de 36 s com as jogadas das legendas abaixo.
+// Vídeos dos lances: usa os de uploads/demo-lances (lances reais, fora do Git) e,
+// se não houver, os exemplos de prisma/demo-lances.
 const PASTAS_DE_LANCES = [
   path.join(PASTA_UPLOADS, "demo-lances"),
   path.join(import.meta.dirname, "demo-lances"),
@@ -36,14 +29,14 @@ async function videosDaDemo() {
     const videos = arquivos.filter((nome) => /\.(mp4|mov)$/i.test(nome)).sort();
     if (videos.length === 0) continue;
 
-    await mkdir(path.join(PASTA_UPLOADS, "videos"), { recursive: true });
     const lances = await Promise.all(
-      videos.map(async (nome, i) => {
-        const destino = `demo-${i + 1}${path.extname(nome).toLowerCase()}`;
-        await copyFile(path.join(pasta, nome), path.join(PASTA_UPLOADS, "videos", destino));
+      videos.map(async (nome) => {
         const conteudo = await readFile(path.join(pasta, nome));
+        const mov = nome.toLowerCase().endsWith(".mov");
         return {
-          url: `/uploads/videos/${destino}`,
+          conteudo,
+          extensao: mov ? "mov" : "mp4",
+          tipo: mov ? "video/quicktime" : "video/mp4",
           duracaoSeg: Math.round(lerDuracaoDoVideo(conteudo) ?? 45),
           horizontal: videoEhHorizontal(conteudo),
         };
@@ -61,6 +54,16 @@ function emDias(dias: number, hora: number, minuto = 0) {
 }
 
 async function main() {
+  // Apaga os arquivos das contas demo antes de recriar tudo, para não sobrar arquivo sem dono.
+  const antigas = await prisma.usuario.findMany({
+    where: { email: { endsWith: DOMINIO } },
+    select: { fotoUrl: true, atleta: { select: { videos: { select: { url: true } } } } },
+  });
+  for (const { fotoUrl, atleta } of antigas) {
+    for (const url of [fotoUrl, ...(atleta?.videos.map((video) => video.url) ?? [])]) {
+      if (url) await armazenamento.remover(url);
+    }
+  }
   await prisma.usuario.deleteMany({ where: { email: { endsWith: DOMINIO } } });
   const senhaHash = await bcrypt.hash(SENHA, 10);
   const conta = (email: string, nome: string) => ({
@@ -312,7 +315,10 @@ async function main() {
   ];
   const videos = await videosDaDemo();
   for (const [i, lance] of lances.entries()) {
-    const { url, duracaoSeg, horizontal } = videos.lances[i % videos.lances.length]!;
+    // Cada lance tem o próprio arquivo: excluir um lance no app não apaga o vídeo de outro.
+    const { conteudo, extensao, tipo, duracaoSeg, horizontal } =
+      videos.lances[i % videos.lances.length]!;
+    const url = await armazenamento.salvar({ pasta: "videos", extensao, tipo, conteudo });
     const video = await prisma.video.create({
       data: {
         atletaId: lance.atleta.id,
@@ -332,7 +338,8 @@ async function main() {
   }
 
   console.log("Dados de demonstração prontos. Senha de todas as contas:", SENHA);
-  console.log(`  Lances: ${videos.lances.length} vídeo(s) de ${videos.pasta}`);
+  const onde = env.STORAGE_DRIVER === "s3" ? "na internet" : "na pasta uploads";
+  console.log(`  Lances: ${videos.lances.length} vídeo(s) de ${videos.pasta}, guardados ${onde}`);
   console.log(`  Atleta com responsável: atleta${DOMINIO}`);
   console.log(`  Atleta sem responsável: leandro${DOMINIO}`);
   console.log(`  Olheiro: olheiro${DOMINIO} (verificado)`);

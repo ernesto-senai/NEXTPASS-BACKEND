@@ -17,7 +17,7 @@ import type {
   ListarMinhasAvaliacoes,
 } from "../application/minhas-avaliacoes.ts";
 
-// Avaliações (Endpoints v2.0, seção 5.6)
+// Avaliações
 // GET    /avaliacoes              Atleta                     RF-18, RF-19, RF-23, RF-24
 // GET    /avaliacoes/:id          Autenticado                RF-20 (endereço só após confirmação, RN-08)
 // POST   /avaliacoes              Olheiro verificado         RF-41

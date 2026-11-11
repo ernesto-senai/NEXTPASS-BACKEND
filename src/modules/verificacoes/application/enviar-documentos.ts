@@ -46,9 +46,8 @@ export type AnalisarVerificacao = (
   decisao: { status: "APROVADA" | "RECUSADA"; motivoRecusa?: string | undefined },
 ) => Promise<void>;
 
-// RF-16: o olheiro envia o documento de identidade e, se atua por clube, o
-// comprovante do vínculo (RN-05). Os arquivos vão para uma pasta privada, fora
-// do alcance do app (RNF-09). Depois de recusado, pode enviar de novo.
+// RF-16: documento de identidade e, para quem atua por clube, o comprovante (RN-05).
+// Vai para a pasta privada (RNF-09). Se for recusado, o olheiro pode enviar de novo.
 export function criarEnviarDocumentos(deps: {
   verificacoes: VerificacaoRepository;
   armazenamento: Armazenamento;
@@ -57,6 +56,7 @@ export function criarEnviarDocumentos(deps: {
     deps.armazenamento.salvar({
       pasta: "documentos",
       extensao: FORMATOS_DOCUMENTO[formato],
+      tipo: formato,
       conteudo,
     });
 

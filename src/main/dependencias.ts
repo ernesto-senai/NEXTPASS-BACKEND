@@ -123,7 +123,7 @@ import { exigirOlheiroVerificado } from "../shared/http/middlewares/authorize.ts
 import { prisma } from "../shared/infra/database/prisma.ts";
 import { criarCorreioConsole } from "../shared/infra/mail/correio-console.ts";
 import { criarBcryptHasher } from "../shared/infra/security/bcrypt-hasher.ts";
-import { criarArmazenamentoLocal } from "../shared/infra/storage/armazenamento-local.ts";
+import { criarArmazenamentoDoAmbiente } from "../shared/infra/storage/armazenamento-do-ambiente.ts";
 
 export interface Dependencias {
   auth: AuthCasosDeUso;
@@ -268,7 +268,7 @@ export function criarDependencias(): Dependencias {
     vinculos: criarVinculoRepositoryPrisma(prisma),
     denuncias: criarDenunciaRepositoryPrisma(prisma),
     olheiroVerificado: criarConsultaOlheiroVerificado(prisma),
-    armazenamento: criarArmazenamentoLocal(),
+    armazenamento: criarArmazenamentoDoAmbiente(),
     correio: criarCorreioConsole(),
     urlDoApp: env.APP_URL,
     hasher: criarBcryptHasher(),

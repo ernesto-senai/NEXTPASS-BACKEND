@@ -17,9 +17,8 @@ export interface DadosDoLance {
 
 export type PublicarLance = (dados: DadosDoLance) => Promise<Lance>;
 
-// RF-25 e RF-29: o atleta publica um lance com legenda e localização. A
-// duração vem do próprio arquivo, não do app, para valer a RN-09; a orientação
-// também, para o feed saber como mostrar o vídeo.
+// RF-25 e RF-29: publicar lance. A duração (RN-09) e a orientação são lidas do
+// próprio arquivo, não do que o app manda.
 export function criarPublicarLance(deps: {
   lances: LanceRepository;
   armazenamento: Armazenamento;
@@ -43,6 +42,7 @@ export function criarPublicarLance(deps: {
     const url = await deps.armazenamento.salvar({
       pasta: "videos",
       extensao: FORMATOS_LANCE[video.formato],
+      tipo: video.formato,
       conteudo: video.conteudo,
     });
 

@@ -1,4 +1,4 @@
-// Códigos fixos que o app usa para tratar cada caso (Endpoints v2.0, seção 3).
+// Códigos fixos que o app usa para tratar cada caso.
 export const codigosErro = {
   DADOS_INVALIDOS: 400,
   // Link de confirmação do vínculo usado, vencido ou inexistente.

@@ -1,7 +1,5 @@
-// RNF-16: a busca ignora acentos e maiúsculas e tolera pequenos erros de
-// digitação ("leandor" acha "Leandro", "sao paulo" acha "São Paulo"). No banco
-// a mesma regra usa as extensões unaccent e pg_trgm; aqui fica a versão em
-// TypeScript, usada pelos testes e documentada para o TCC.
+// RNF-16: busca sem acento e com tolerância a erros ("leandor" acha "Leandro").
+// No banco isso é feito com unaccent e pg_trgm; esta versão é usada nos testes.
 
 // Abaixo disso a busca só procura o trecho exato: com 1 a 3 letras, a
 // tolerância a erro traria resultados demais.
@@ -11,7 +9,7 @@ export const TAMANHO_MINIMO_TOLERANCIA = 4;
 // trigramas no PostgreSQL (word_similarity).
 export const SIMILARIDADE_MINIMA = 0.5;
 
-// "São Paulo" → "sao paulo".
+// Ex.: "São Paulo" vira "sao paulo".
 export const normalizar = (texto: string) =>
   texto
     .normalize("NFD")
@@ -19,8 +17,8 @@ export const normalizar = (texto: string) =>
     .toLowerCase()
     .trim();
 
-// Quantas letras é preciso trocar, tirar, pôr ou inverter de lugar ("leandor"
-// → "leandro" é um erro só) para ir de um texto ao outro.
+// Quantas letras é preciso trocar, tirar, pôr ou inverter de lugar para ir de um
+// texto ao outro (de "leandor" para "leandro" é um erro só).
 function distancia(a: string, b: string): number {
   const d = Array.from({ length: a.length + 1 }, (_, i) =>
     Array.from({ length: b.length + 1 }, (_, j) => (i === 0 ? j : j === 0 ? i : 0)),

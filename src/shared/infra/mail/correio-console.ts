@@ -5,7 +5,7 @@ import type { Correio } from "../../domain/correio.ts";
 export function criarCorreioConsole(): Correio {
   return {
     enviar: async ({ para, assunto, texto }) => {
-      console.info(`\n✉️  E-mail para ${para}\nAssunto: ${assunto}\n\n${texto}\n`);
+      console.info(`\nE-mail para ${para}\nAssunto: ${assunto}\n\n${texto}\n`);
     },
   };
 }

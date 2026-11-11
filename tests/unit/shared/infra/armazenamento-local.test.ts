@@ -20,6 +20,7 @@ describe("armazenamento local", () => {
     const url = await armazenamento.salvar({
       pasta: "documentos",
       extensao: "pdf",
+      tipo: "application/pdf",
       conteudo: Buffer.from("%PDF teste"),
     });
 

@@ -18,7 +18,7 @@ import { FORMATOS_FOTO, type FormatoFoto, TAMANHO_MAXIMO_FOTO_MB } from "../doma
 import type { UsuarioCriado } from "../domain/usuario-repository.ts";
 import { TERMOS_VIGENTES } from "../domain/termos.ts";
 
-// Cadastro e perfil (Endpoints v2.0, seção 5.2)
+// Cadastro e perfil
 // POST   /atletas                 Público          RF-08, RF-10, RF-12
 // POST   /olheiros                Público          RF-09, RF-10, RF-12
 // GET    /termos                  Público          RF-10

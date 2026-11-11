@@ -9,7 +9,7 @@ export interface SituacaoVerificacao {
   motivoRecusa: string | null;
 }
 
-// RF-16: documentos aceitos (tipo MIME → extensão) e tamanho máximo.
+// RF-16: documentos aceitos (tipo MIME e extensão) e tamanho máximo.
 export const FORMATOS_DOCUMENTO = {
   "image/jpeg": "jpg",
   "image/png": "png",

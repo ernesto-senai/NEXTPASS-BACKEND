@@ -3,7 +3,7 @@ import type { Paginacao } from "../../../shared/domain/pagina.ts";
 // RN-09: duração do lance, em segundos.
 export const DURACAO_LANCE = { min: 30, max: 60 } as const;
 
-// RNF-04: formatos aceitos (tipo MIME → extensão do arquivo) e tamanho máximo.
+// RNF-04: formatos aceitos (tipo MIME e extensão do arquivo) e tamanho máximo.
 export const FORMATOS_LANCE = { "video/mp4": "mp4", "video/quicktime": "mov" } as const;
 export type FormatoLance = keyof typeof FORMATOS_LANCE;
 export const TAMANHO_MAXIMO_LANCE_MB = 50;
@@ -51,6 +51,11 @@ export interface LanceDoFeed {
   atleta: { id: string; nome: string; fotoUrl: string | null };
 }
 
+export interface CandidatoDoFeed {
+  id: string;
+  visto: boolean;
+}
+
 export interface LanceRepository {
   criar(dados: NovoLance): Promise<Lance>;
   // Destaques primeiro, depois do mais recente para o mais antigo.
@@ -62,8 +67,10 @@ export interface LanceRepository {
   contarDestaques(atletaId: string): Promise<number>;
   atualizar(id: string, dados: EdicaoDeLance): Promise<Lance>;
   remover(id: string): Promise<void>;
-  // Do mais recente para o mais antigo.
-  listarFeed(paginacao: Paginacao): Promise<{ dados: LanceDoFeed[]; total: number }>;
+  // RF-32: lances que podem aparecer no feed (contas ativas, publicados até "ate") e se
+  // o olheiro já tinha assistido cada um antes disso.
+  listarCandidatosDoFeed(olheiroId: string, ate: Date): Promise<CandidatoDoFeed[]>;
+  buscarDoFeed(ids: string[]): Promise<LanceDoFeed[]>;
   existe(id: string): Promise<boolean>;
   registrarVisualizacao(videoId: string, olheiroId: string): Promise<void>;
 }

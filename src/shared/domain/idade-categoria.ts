@@ -3,10 +3,8 @@
 export type Categoria =
   "SUB_9" | "SUB_11" | "SUB_13" | "SUB_15" | "SUB_17" | "SUB_20" | "PROFISSIONAL";
 
-// RN-01: idade que o atleta completa no ano de referência, por categoria. Até a
-// Sub-17 as faixas têm dois anos (em 2026, a Sub-17 reúne nascidos em 2009 e
-// 2010, conforme o glossário). As faixas Sub-20 (18 a 20 anos) e Profissional
-// são uma proposta a validar com a equipe.
+// RN-01: idade que o atleta completa no ano, por categoria (Sub-17 em 2026 = 2009 e 2010).
+// A Sub-20 vai de 18 a 20 anos e a Profissional, de 21 em diante.
 const IDADES_NO_ANO: Record<Categoria, readonly [number, number]> = {
   SUB_9: [0, 9],
   SUB_11: [10, 11],

@@ -3,8 +3,8 @@ import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 import type { Armazenamento } from "../../domain/armazenamento.ts";
 
-// Pasta dos arquivos enviados, fora do Git. Em produção, troque por um serviço
-// de armazenamento (ex.: S3) que implemente a mesma interface.
+// Pasta dos arquivos enviados, fora do Git. Publicado na internet, o projeto usa
+// o armazenamento-s3.ts (STORAGE_DRIVER=s3).
 export const PASTA_UPLOADS = path.resolve("uploads");
 
 export function criarArmazenamentoLocal(raiz = PASTA_UPLOADS): Armazenamento {

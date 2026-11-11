@@ -14,7 +14,7 @@ import type {
 } from "../application/listar-inscritos.ts";
 import type { ListarMinhasInscricoes } from "../application/listar-minhas-inscricoes.ts";
 
-// Inscrições (Endpoints v2.0, seção 5.7)
+// Inscrições
 // POST   /avaliacoes/:id/inscricoes  Atleta                     RF-21 (RN-03, RN-06, RN-07)
 // GET    /avaliacoes/:id/inscricoes  Olheiro verificado (dono)  RF-44
 // GET    /perfil/inscricoes          Atleta ou Responsável      RF-19, RF-50

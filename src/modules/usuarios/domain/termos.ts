@@ -1,6 +1,5 @@
-// RF-10: Termos de Uso e Política de Privacidade exibidos antes do cadastro.
-// Seguem as regras da Documentação do Projeto, a LGPD (Lei 13.709/2018) e o
-// ECA Digital (Lei 15.211/2025). Ao mudar o texto, troque também a versão.
+// RF-10: Termos de Uso e Política de Privacidade (LGPD e ECA Digital).
+// Se mudar o texto, mude também a versão.
 export const TERMOS_VIGENTES = {
   versao: "2026-10",
   termosDeUso: [

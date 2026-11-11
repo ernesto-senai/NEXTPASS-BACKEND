@@ -15,7 +15,7 @@ import type {
   PedirVinculo,
 } from "../application/vinculos.ts";
 
-// Vínculo com o responsável (Endpoints v2.0, seção 5.3)
+// Vínculo com o responsável
 // POST   /vinculos                Atleta           RF-15
 // GET    /vinculos                Atleta ou Responsável  RF-15, RF-49
 // GET    /vinculos/pedido         Público (token)  RF-48 (o que a tela de confirmação mostra)

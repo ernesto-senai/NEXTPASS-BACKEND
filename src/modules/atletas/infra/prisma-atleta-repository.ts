@@ -14,9 +14,8 @@ const ordenacao = {
   maisAltos: [{ alturaCm: "desc" }],
 } satisfies Record<OrdemAtletas, Prisma.AtletaOrderByWithRelationInput[]>;
 
-// Cada campo exige o dado preenchido (RN-02: perfil incompleto não aparece na
-// busca) e, quando há filtro, também o valor pedido. Nome, cidade e
-// nacionalidade ignoram acentos e toleram pequenos erros (RNF-16).
+// Só entra na busca quem tem todos os dados preenchidos (RN-02). Nome, cidade e
+// nacionalidade ignoram acentos e pequenos erros de digitação (RNF-16).
 async function condicoes(
   prisma: PrismaClient,
   consulta: ConsultaAtletas,

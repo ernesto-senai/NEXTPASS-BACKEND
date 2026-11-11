@@ -1,10 +1,8 @@
 import { acharCaixa } from "./duracao-video.ts";
 
-// Diz se o vídeo aparece deitado, lendo o cabeçalho de arquivos MP4 e MOV. Cada
-// faixa guarda a matriz de rotação, a largura e a altura em moov > trak > tkhd.
-// O que vale é como ele aparece: celulares costumam salvar o vídeo em pé como
-// 1920x1080 com "gire 90°". Quadrado conta como deitado, porque cortar as
-// laterais esconderia a jogada do mesmo jeito. Sem esses dados, fica como em pé.
+// Diz se o vídeo aparece deitado. Lê largura, altura e rotação em moov > trak > tkhd,
+// porque o celular costuma salvar vídeo em pé como 1920x1080 girado 90°.
+// Quadrado conta como deitado. Se não achar os dados, considera em pé.
 export function videoEhHorizontal(arquivo: Buffer): boolean {
   try {
     const moov = acharCaixa(arquivo, "moov", 0, arquivo.length);
