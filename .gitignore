@@ -10,3 +10,6 @@ src/generated/
 *.log
 .DS_Store
 node_modules
+
+# Arquivos enviados pelo app (lances e documentos)
+uploads/

@@ -30,5 +30,12 @@ export function criarRefreshTokenRepositoryPrisma(prisma: PrismaClient): Refresh
       });
       return count > 0;
     },
+
+    revogarTodos: async (usuarioId, agora) => {
+      await prisma.token.updateMany({
+        where: { usuarioId, tipo: "REFRESH", usadoEm: null },
+        data: { usadoEm: agora },
+      });
+    },
   };
 }

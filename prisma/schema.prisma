@@ -1,4 +1,4 @@
-// Modelo de dados do NextPass (Endpoints da API v2.0, Figura 2 e Quadro 2).
+// Modelo de dados do NextPass.
 // A URL do banco fica em prisma.config.ts (Prisma 7).
 
 generator client {
@@ -10,7 +10,7 @@ datasource db {
   provider = "postgresql"
 }
 
-// ─── Enums (Quadro 2) ───────────────────────────────────────────────
+// Enums
 
 enum TipoUsuario {
   ATLETA
@@ -126,7 +126,7 @@ enum TipoToken {
   REDEFINIR_SENHA
 }
 
-// ─── Usuários e perfis ──────────────────────────────────────────────
+// Usuários e perfis
 
 model Usuario {
   id              String        @id @default(uuid(7)) @db.Uuid
@@ -225,7 +225,7 @@ model Vinculo {
   @@unique([atletaId, emailResponsavel])
 }
 
-// ─── Lances ─────────────────────────────────────────────────────────
+// Lances
 
 model Video {
   id           String   @id @default(uuid(7)) @db.Uuid
@@ -235,6 +235,8 @@ model Video {
   legenda      String?
   localizacao  String?
   destaque     Boolean  @default(false)
+  // Vídeo deitado: o feed mostra inteiro, sem cortar. Lido do arquivo no envio.
+  horizontal   Boolean  @default(false)
   criadoEm     DateTime @default(now())
   atualizadoEm DateTime @updatedAt
 
@@ -257,7 +259,7 @@ model Visualizacao {
   @@index([videoId])
 }
 
-// ─── Avaliações, inscrições e convites ──────────────────────────────
+// Avaliações, inscrições e convites
 
 // vagasOcupadas é um contador para ocupar a última vaga com um UPDATE
 // condicional, sem corrida entre duas inscrições simultâneas (RN-06).
@@ -330,7 +332,7 @@ model Convite {
   @@index([avaliacaoId, status])
 }
 
-// ─── Notificações, denúncias e sessão ───────────────────────────────
+// Notificações, denúncias e sessão
 
 model Notificacao {
   id        String          @id @default(uuid(7)) @db.Uuid
@@ -376,8 +378,7 @@ model Denuncia {
   @@index([alvoTipo, alvoId])
 }
 
-// Guarda só o hash dos tokens de atualização e de redefinição de senha,
-// para o logout invalidar a sessão do aparelho (RNF-07).
+// Guarda só o hash dos tokens, para o logout invalidar a sessão do aparelho (RNF-07).
 model Token {
   id        String    @id @default(uuid(7)) @db.Uuid
   usuarioId String    @db.Uuid

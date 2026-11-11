@@ -32,5 +32,10 @@ export function criarUsuarioRepositoryPrisma(prisma: PrismaClient): UsuarioRepos
           select: camposCriado,
         }),
       ),
+
+    criarResponsavel: (dados) =>
+      nuloSeEmailDuplicado(
+        prisma.usuario.create({ data: { ...dados, tipo: "RESPONSAVEL" }, select: camposCriado }),
+      ),
   };
 }

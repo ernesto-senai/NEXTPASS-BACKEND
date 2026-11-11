@@ -48,6 +48,8 @@ export interface RefreshTokenRepository {
   buscarValido(tokenHash: string, agora: Date): Promise<RefreshTokenSalvo | null>;
   // Devolve false se outro pedido já usou o token (renovação concorrente).
   revogar(id: string, agora: Date): Promise<boolean>;
+  // Encerra a sessão em todos os aparelhos (ex.: conta suspensa pela moderação).
+  revogarTodos(usuarioId: string, agora: Date): Promise<void>;
 }
 
 export function paraUsuarioAutenticado({ id, nome, tipo }: Conta): UsuarioAutenticado {

@@ -1,6 +1,8 @@
-// Códigos fixos que o app usa para tratar cada caso (Endpoints v2.0, seção 3).
+// Códigos fixos que o app usa para tratar cada caso.
 export const codigosErro = {
   DADOS_INVALIDOS: 400,
+  // Link de confirmação do vínculo usado, vencido ou inexistente.
+  LINK_INVALIDO: 400,
   NAO_AUTENTICADO: 401,
   CREDENCIAIS_INVALIDAS: 401,
   TOKEN_INVALIDO: 401,
@@ -11,9 +13,18 @@ export const codigosErro = {
   EMAIL_JA_CADASTRADO: 409,
   VAGAS_ESGOTADAS: 409,
   INSCRICAO_EXISTENTE: 409,
+  CONVITE_EXISTENTE: 409,
+  CONVITE_ENCERRADO: 409,
+  AVALIACAO_ENCERRADA: 409,
+  INSCRICAO_ENCERRADA: 409,
+  VINCULO_EXISTENTE: 409,
+  VERIFICACAO_EM_ANALISE: 409,
+  CONTA_JA_VERIFICADA: 409,
+  JA_ANALISADA: 409,
   ARQUIVO_GRANDE_DEMAIS: 413,
   PERFIL_INCOMPLETO: 422,
   DURACAO_VIDEO_INVALIDA: 422,
+  LIMITE_DESTAQUES: 422,
   VINCULO_PENDENTE: 422,
   MUITAS_TENTATIVAS: 429,
   ERRO_INTERNO: 500,
