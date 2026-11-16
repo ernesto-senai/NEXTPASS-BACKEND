@@ -76,7 +76,7 @@ Publicado, o NextPass funciona como um app de verdade: todos os celulares e comp
 1. Crie uma conta em supabase.com e um projeto na região East US (North Virginia), a mesma da API no Render. Guarde a senha do banco e use só letras e números nela: símbolos como `@` e `#` quebram a URL do banco.
 2. Em **Storage**, crie o bucket `nextpass-publico` marcado como público e o bucket `nextpass-privado` sem marcar. O plano grátis aceita arquivos de até 50 MB, o mesmo limite dos lances.
 3. Nas configurações de Storage, em **S3 Connection**, ative a conexão S3, copie o endpoint e a região e crie uma chave de acesso. A chave secreta só aparece uma vez.
-4. No botão **Connect** do projeto, copie a URL do **Session pooler** e troque `[YOUR-PASSWORD]` pela senha do banco.
+4. No botão **Connect** do projeto, copie a URL do **Session pooler** e troque `[YOUR-PASSWORD]` pela senha do banco. Copie a URL inteira de lá: o começo do endereço (`aws-0` ou `aws-1`) muda de um projeto para outro, e com o errado o Prisma mostra o erro P1001, como se o banco estivesse fora do ar.
 
 **2. Brevo (e-mails)**
 
