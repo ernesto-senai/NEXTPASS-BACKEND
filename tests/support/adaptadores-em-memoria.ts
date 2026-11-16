@@ -109,6 +109,7 @@ const contem = combinaComBusca;
 export function criarAdaptadoresEmMemoria() {
   const usuarios: UsuarioMemoria[] = [];
   const tokens: TokenMemoria[] = [];
+  const codigosDeSenha: Omit<TokenMemoria, "id">[] = [];
   const avaliacoes: AvaliacaoMemoria[] = [];
   const inscricoes: InscricaoMemoria[] = [];
   const lances: (Omit<LanceDoFeed, "visualizacoes"> & { destaque?: boolean })[] = [];
@@ -188,6 +189,9 @@ export function criarAdaptadoresEmMemoria() {
     contas: {
       buscarPorEmail: async (email) => usuarios.find((u) => u.email === email) ?? null,
       buscarPorId: async (id) => usuario(id) ?? null,
+      atualizarSenha: async (id, senhaHash) => {
+        usuario(id)!.senhaHash = senhaHash;
+      },
     },
 
     perfis: {
@@ -291,6 +295,21 @@ export function criarAdaptadoresEmMemoria() {
         for (const token of tokens) {
           if (token.usuarioId === usuarioId && !token.usadoEm) token.usadoEm = agora;
         }
+      },
+    },
+
+    codigosDeSenha: {
+      substituir: async (dados) => {
+        const anteriores = codigosDeSenha.filter((c) => c.usuarioId === dados.usuarioId);
+        for (const codigo of anteriores) codigosDeSenha.splice(codigosDeSenha.indexOf(codigo), 1);
+        codigosDeSenha.push({ ...dados, usadoEm: null });
+      },
+      usar: async (tokenHash, agora) => {
+        const codigo = codigosDeSenha.find(
+          (c) => c.tokenHash === tokenHash && !c.usadoEm && c.expiraEm > agora,
+        );
+        if (codigo) codigo.usadoEm = agora;
+        return !!codigo;
       },
     },
 
@@ -903,6 +922,7 @@ export function criarAdaptadoresEmMemoria() {
     adaptadores,
     usuarios,
     tokens,
+    codigosDeSenha,
     avaliacoes,
     inscricoes,
     lances,

@@ -1,7 +1,7 @@
 import type { Correio } from "../../domain/correio.ts";
 
-// O NextPass não envia e-mails de verdade: o e-mail (ex.: link de vínculo
-// com o responsável) aparece no terminal da API, para copiar e abrir no app.
+// Com EMAIL_DRIVER=console, o e-mail (código de nova senha, link do responsável)
+// aparece no terminal da API, para testar sem conta de e-mail.
 export function criarCorreioConsole(): Correio {
   return {
     enviar: async ({ para, assunto, texto }) => {

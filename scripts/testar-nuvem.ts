@@ -1,7 +1,8 @@
 // npm run nuvem:testar: confere se o .env está pronto para o projeto publicado.
-// Testa o banco e envia, lê e apaga um arquivo pequeno em cada bucket.
+// Testa o banco, os dois buckets (envia, lê e apaga um arquivo pequeno) e o e-mail.
 import { env } from "../src/config/env.ts";
 import { prisma } from "../src/shared/infra/database/prisma.ts";
+import { criarCorreioDoAmbiente } from "../src/shared/infra/mail/correio-do-ambiente.ts";
 import { criarArmazenamentoDoAmbiente } from "../src/shared/infra/storage/armazenamento-do-ambiente.ts";
 
 let falhas = 0;
@@ -78,6 +79,19 @@ if (env.STORAGE_DRIVER === "local") {
     } finally {
       await armazenamento.remover(url);
     }
+  });
+}
+
+if (env.EMAIL_DRIVER === "console") {
+  console.log("aviso   e-mail: EMAIL_DRIVER=console mostra os e-mails no terminal da API");
+} else {
+  await conferir("e-mail (Brevo)", async () => {
+    await criarCorreioDoAmbiente().enviar({
+      para: env.EMAIL_FROM!,
+      assunto: "Teste do NextPass",
+      texto: "Se este e-mail chegou, o envio de e-mails do NextPass está funcionando.",
+    });
+    return `enviado para ${env.EMAIL_FROM}, confira a caixa de entrada`;
   });
 }
 

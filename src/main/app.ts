@@ -26,6 +26,8 @@ export function createApp(deps: Dependencias = criarDependencias()) {
     pinoHttp({
       enabled: env.NODE_ENV !== "test",
       transport: env.NODE_ENV === "development" ? { target: "pino-pretty" } : undefined,
+      // O token de login não vai para os logs (no Render, qualquer um do painel lê os logs).
+      redact: ["req.headers.authorization", "req.headers.cookie"],
     }),
   );
 

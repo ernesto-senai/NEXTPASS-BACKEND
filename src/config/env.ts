@@ -26,7 +26,7 @@ const envSchema = z
       ),
     // Onde ficam lances, fotos e documentos: "local" (pasta uploads) ou "s3" (Supabase
     // Storage, Cloudflare R2 ou AWS S3), para todos os aparelhos verem os mesmos arquivos.
-    STORAGE_DRIVER: z.enum(["local", "s3"]).default("local"),
+    STORAGE_DRIVER: z.preprocess(vazioComoAusente, z.enum(["local", "s3"]).default("local")),
     S3_ENDPOINT: opcional(z.url()),
     S3_REGION: texto("us-east-1"),
     S3_ACCESS_KEY_ID: opcional(z.string()),
@@ -35,22 +35,30 @@ const envSchema = z
     S3_PRIVATE_BUCKET: texto("nextpass-privado"),
     // Endereço público do bucket de lances e fotos.
     S3_PUBLIC_URL: opcional(z.url()),
+    // E-mails (código de nova senha e link do responsável): "console" mostra no terminal
+    // da API; "brevo" envia de verdade, pela API do Brevo.
+    EMAIL_DRIVER: z.preprocess(vazioComoAusente, z.enum(["console", "brevo"]).default("console")),
+    BREVO_API_KEY: opcional(z.string()),
+    // Remetente confirmado no Brevo.
+    EMAIL_FROM: opcional(z.email()),
+    EMAIL_FROM_NAME: texto("NextPass"),
   })
   .superRefine((dados, ctx) => {
-    if (dados.STORAGE_DRIVER !== "s3") return;
-    for (const nome of [
-      "S3_ENDPOINT",
-      "S3_ACCESS_KEY_ID",
-      "S3_SECRET_ACCESS_KEY",
-      "S3_PUBLIC_URL",
-    ] as const) {
-      if (!dados[nome]) {
-        ctx.addIssue({
-          code: "custom",
-          path: [nome],
-          message: "Obrigatória com STORAGE_DRIVER=s3.",
-        });
+    const exigir = (nomes: readonly (keyof typeof dados)[], motivo: string) => {
+      for (const nome of nomes) {
+        if (!dados[nome]) {
+          ctx.addIssue({ code: "custom", path: [nome], message: `Obrigatória com ${motivo}.` });
+        }
       }
+    };
+    if (dados.STORAGE_DRIVER === "s3") {
+      exigir(
+        ["S3_ENDPOINT", "S3_ACCESS_KEY_ID", "S3_SECRET_ACCESS_KEY", "S3_PUBLIC_URL"],
+        "STORAGE_DRIVER=s3",
+      );
+    }
+    if (dados.EMAIL_DRIVER === "brevo") {
+      exigir(["BREVO_API_KEY", "EMAIL_FROM"], "EMAIL_DRIVER=brevo");
     }
   });
 

@@ -26,13 +26,15 @@ A migração `busca_sem_acento` ativa as extensões `unaccent` e `pg_trgm`, que 
 
 Stack completa em contêineres (banco, migrações e API): `docker compose --profile full up --build`.
 
+**E-mails:** com `EMAIL_DRIVER=console` (o padrão), o código de nova senha e o link do responsável aparecem no terminal da API. Com `EMAIL_DRIVER=brevo`, eles chegam por e-mail (veja o passo 2 de Publicar na internet).
+
 ### Rotas (todas em `/api/v1`)
 
 Cada arquivo `src/modules/*/http/*.routes.ts` começa com a lista das suas rotas, o perfil de acesso e os RFs atendidos.
 
 | Grupo                     | Rotas                                                                                                                                                                          |
 | ------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| Autenticação              | `POST /auth/login`, `/auth/refresh`, `/auth/logout`                                                                                                                            |
+| Autenticação              | `POST /auth/login`, `/auth/refresh`, `/auth/logout`, `/auth/esqueci-senha`, `/auth/redefinir-senha`                                                                            |
 | Cadastro e perfil         | `POST /atletas`, `POST /olheiros`, `GET /termos`, `GET/PATCH/DELETE /perfil`, `POST /perfil/foto`                                                                              |
 | Verificação e vínculo     | `GET/POST /perfil/verificacao`, `POST/GET /vinculos`, `GET /vinculos/pedido`, `POST /responsaveis`                                                                             |
 | Lances                    | `GET/POST /videos`, `GET /perfil/videos`, `PATCH/DELETE /videos/:id`, `POST /videos/:id/visualizacoes`                                                                         |
@@ -59,32 +61,45 @@ O administrador usa a API por um cliente HTTP (ex.: Thunder Client): `POST /auth
 
 ## Publicar na internet
 
-Publicado, o NextPass funciona como um app de verdade: todos os celulares e computadores veem os mesmos lances, perfis e avaliações, de qualquer rede. Tudo cabe no plano grátis de dois serviços:
+Publicado, o NextPass funciona como um app de verdade: todos os celulares e computadores veem os mesmos lances, perfis e avaliações, de qualquer rede. Tudo cabe no plano grátis de três serviços:
 
-| Parte                      | Onde fica                                                                                                 |
-| -------------------------- | --------------------------------------------------------------------------------------------------------- |
-| Banco de dados             | Supabase (PostgreSQL)                                                                                     |
-| Lances, fotos e documentos | Supabase Storage, pelo protocolo S3: um bucket público (lances e fotos) e um privado (documentos, RNF-09) |
-| API                        | Render, pelo `render.yaml` deste repositório                                                              |
-| App web                    | Render, pelo `render.yaml` do repositório do app                                                          |
+| Parte                                                | Onde fica                                                                                                 |
+| ---------------------------------------------------- | --------------------------------------------------------------------------------------------------------- |
+| Banco de dados                                       | Supabase (PostgreSQL)                                                                                     |
+| Lances, fotos e documentos                           | Supabase Storage, pelo protocolo S3: um bucket público (lances e fotos) e um privado (documentos, RNF-09) |
+| API                                                  | Render, pelo `render.yaml` deste repositório                                                              |
+| App web                                              | Render, pelo `render.yaml` do repositório do app                                                          |
+| E-mails (código de nova senha e link do responsável) | Brevo, pela API HTTPS, porque o Render grátis bloqueia SMTP                                               |
 
 **1. Supabase (banco e arquivos)**
 
-1. Crie uma conta em supabase.com e um projeto na região East US (North Virginia), a mesma da API no Render. Guarde a senha do banco.
+1. Crie uma conta em supabase.com e um projeto na região East US (North Virginia), a mesma da API no Render. Guarde a senha do banco e use só letras e números nela: símbolos como `@` e `#` quebram a URL do banco.
 2. Em **Storage**, crie o bucket `nextpass-publico` marcado como público e o bucket `nextpass-privado` sem marcar. O plano grátis aceita arquivos de até 50 MB, o mesmo limite dos lances.
 3. Nas configurações de Storage, em **S3 Connection**, ative a conexão S3, copie o endpoint e a região e crie uma chave de acesso. A chave secreta só aparece uma vez.
 4. No botão **Connect** do projeto, copie a URL do **Session pooler** e troque `[YOUR-PASSWORD]` pela senha do banco.
 
-**2. `.env` deste computador apontando para a nuvem**
+**2. Brevo (e-mails)**
+
+1. Crie uma conta grátis em brevo.com (300 e-mails por dia).
+2. Em **Senders, Domains & Dedicated IPs > Senders**, adicione o e-mail que vai mandar as mensagens (ex.: o Gmail do projeto) e confirme pelo link que chega nele.
+3. Em **SMTP & API > API Keys**, gere uma chave de API e copie. Ela só aparece uma vez.
+
+**3. `.env` deste computador apontando para a nuvem**
+
+Antes, copie o `.env` para `.env.banco-local` (o Git ignora esse nome): para voltar ao banco do computador, é só copiar de volta. Com a API aberta na internet, use uma senha forte no `ADMIN_PASSWORD`.
 
 ```bash
 DATABASE_URL=<URL do Session pooler>?sslmode=require
+ADMIN_PASSWORD=<senha forte, diferente da demo12345>
 STORAGE_DRIVER=s3
 S3_ENDPOINT=<endpoint copiado>
 S3_REGION=<região copiada>
 S3_ACCESS_KEY_ID=<chave de acesso>
 S3_SECRET_ACCESS_KEY=<chave secreta>
 S3_PUBLIC_URL=https://<projeto>.supabase.co/storage/v1/object/public/nextpass-publico
+EMAIL_DRIVER=brevo
+BREVO_API_KEY=<chave do Brevo>
+EMAIL_FROM=<remetente confirmado no Brevo>
 ```
 
 Depois rode, nesta ordem:
@@ -93,36 +108,36 @@ Depois rode, nesta ordem:
 npm run db:deploy      # cria as tabelas no Supabase
 npm run db:seed        # conta de administrador
 npm run db:demo        # contas e lances de demonstração, com os vídeos na nuvem
-npm run nuvem:testar   # confere o banco e os dois buckets
+npm run nuvem:testar   # confere o banco, os dois buckets e o e-mail
 ```
 
 A rede da escola pode bloquear a porta do banco (5432). Se o `db:deploy` não conectar, rode esses comandos em outra rede, como a de casa ou o 4G do celular.
 
-**3. Render (API)**
+**4. Render (API)**
 
 1. Crie uma conta em render.com entrando com o GitHub que tem acesso a este repositório.
-2. Em **New > Blueprint**, escolha este repositório e a branch com o código final. O Render lê o `render.yaml` e pede as variáveis: copie os valores do `.env` do passo 2. Em `APP_URL` e `CORS_ORIGINS` vai o endereço do app web, sem barra no fim (passo 4); se ainda não tiver, use `http://localhost:8081` e troque depois.
+2. Em **New > Blueprint**, escolha este repositório e a branch com o código final. O Render lê o `render.yaml` e pede as variáveis: copie os valores do `.env` do passo 3. Em `APP_URL` vai o endereço do app web, sem barra no fim (passo 5). Em `CORS_ORIGINS` vão o mesmo endereço e `http://localhost:8081`, separados por vírgula, para o app no navegador do computador também funcionar. Se o site ainda não existir, use `http://localhost:8081` nos dois e troque depois.
 3. Quando o deploy terminar, `https://<nome-da-api>.onrender.com/health` responde `{"status":"ok"}`.
 
-No plano grátis, a API dorme depois de 15 minutos sem uso e leva cerca de 1 minuto para acordar. No dia da apresentação, abra o `/health` alguns minutos antes. O link de vínculo do responsável (RF-48) aparece em **Logs**, no painel do Render.
+No plano grátis, a API dorme depois de 15 minutos sem uso e leva cerca de 1 minuto para acordar. No dia da apresentação, abra o `/health` alguns minutos antes. Com o Brevo configurado, o código de nova senha e o link de vínculo do responsável (RF-48) chegam por e-mail.
 
-**4. App**
+**5. App**
 
 - **Web:** o README do app explica como criar o site no Render. Depois, coloque o endereço do site no `APP_URL` e no `CORS_ORIGINS` da API (em **Environment**, no Render).
 - **Expo Go:** no `.env` do app, `EXPO_PUBLIC_API_URL=https://<nome-da-api>.onrender.com`.
 
 ## Scripts
 
-| Script                          | O que faz                                         |
-| ------------------------------- | ------------------------------------------------- |
-| `dev`                           | API em modo watch (tsx)                           |
-| `build` / `start`               | Compila para `dist/` e roda a versão compilada    |
-| `typecheck` / `lint` / `format` | Tipos, ESLint e Prettier                          |
-| `test` / `test:watch`           | Testes com Vitest                                 |
-| `db:migrate` / `db:deploy`      | Cria migração em dev / aplica em produção         |
-| `db:seed` / `db:studio`         | Seed do admin / Prisma Studio                     |
-| `db:demo`                       | Recria os dados de demonstração                   |
-| `nuvem:testar`                  | Confere o banco e os buckets do projeto publicado |
+| Script                          | O que faz                                                   |
+| ------------------------------- | ----------------------------------------------------------- |
+| `dev`                           | API em modo watch (tsx)                                     |
+| `build` / `start`               | Compila para `dist/` e roda a versão compilada              |
+| `typecheck` / `lint` / `format` | Tipos, ESLint e Prettier                                    |
+| `test` / `test:watch`           | Testes com Vitest                                           |
+| `db:migrate` / `db:deploy`      | Cria migração em dev / aplica em produção                   |
+| `db:seed` / `db:studio`         | Seed do admin / Prisma Studio                               |
+| `db:demo`                       | Recria os dados de demonstração                             |
+| `nuvem:testar`                  | Confere o banco, os buckets e o e-mail do projeto publicado |
 
 ## Arquitetura
 
@@ -163,14 +178,13 @@ src/
 - **Contador de vagas** (`Avaliacao.vagasOcupadas`): a última vaga é ocupada com um `UPDATE` condicional (`WHERE vagasOcupadas < vagas`), o que evita que duas inscrições simultâneas passem do limite (RN-06).
 - **Uma inscrição por atleta e avaliação** (`@@unique([avaliacaoId, atletaId])`): o banco garante a RN-07. Uma reinscrição muda o status da linha que já existe.
 - **Taxa em centavos** (`taxaCentavos: Int`) em vez de ponto flutuante (RN-13: a taxa é só informativa).
-- **Tabela `Token`**: guarda só o hash dos tokens de atualização, para o logout invalidar a sessão (RNF-07).
+- **Tabela `Token`**: guarda só o hash dos tokens de atualização e dos códigos de nova senha, para o logout invalidar a sessão (RNF-07) e cada código valer uma vez só (RF-05).
 - **Busca (RNF-16):** ignora acentos e maiúsculas e tolera pequenos erros de digitação com as extensões `unaccent` e `pg_trgm` do PostgreSQL. A regra está em `src/shared/domain/busca.ts` (usada pelos testes) e `src/shared/infra/database/busca-textual.ts` (SQL).
 - **Feed aleatório (RF-32):** o app manda uma semente (`Date.now()` quando o feed abre), e a API embaralha os lances com ela, primeiro os que o olheiro ainda não viu. Com a mesma semente as páginas não repetem lance, e um lance publicado depois entra quando o olheiro atualiza o feed. A regra está em `src/modules/videos/domain/ordem-do-feed.ts`.
 - **Documentos de verificação (RNF-09):** ficam fora das pastas públicas (em `uploads/documentos` ou, publicado, num bucket privado); só o administrador os abre, pela rota `GET /admin/verificacoes/:id/documento`.
 - **Tabelas e campos além da Figura 2:** `Token`, `Usuario.fotoUrl`, `Usuario.termosAceitosEm` (registro do aceite, RF-10), `Vinculo.tokenHash` (link do responsável), `Video.horizontal` (vídeo deitado, lido do arquivo no envio) e `Avaliacao.local/cidade/uf`. A cidade e a UF ficam separadas do endereço porque aparecem no card, e o endereço completo só depois da confirmação (RN-08).
 
-### Fora do escopo do TCC (trabalhos futuros)
+### Decisões de escopo
 
-- **Login com Google (RF-04, RF-12)** e **notificações push (RF-53)**: retirados do escopo pela equipe; os avisos ficam dentro do app (`/notificacoes`). A tabela `Dispositivo` e o campo `Usuario.googleId` já existem no banco para essa evolução.
-- **E-mail de verdade:** o "Esqueceu sua senha?" é simulado no app (RF-05), e o link de confirmação do responsável (RF-48) aparece no terminal da API (`correio-console.ts`). Para enviar de verdade, basta outra implementação da interface `Correio`. O tipo de token `REDEFINIR_SENHA` já existe no banco para isso.
-- **Painel do administrador:** as verificações e as denúncias são analisadas pela API.
+- **Login com Google (RF-04, RF-12) e notificações push (RF-53):** a equipe tirou do escopo durante o projeto. Os avisos aparecem dentro do app (`/notificacoes`).
+- **Administrador:** analisa as verificações e as denúncias pela API, sem tela no app.

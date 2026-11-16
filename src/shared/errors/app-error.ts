@@ -3,6 +3,8 @@ export const codigosErro = {
   DADOS_INVALIDOS: 400,
   // Link de confirmação do vínculo usado, vencido ou inexistente.
   LINK_INVALIDO: 400,
+  // Código de nova senha errado, vencido ou já usado (RF-05).
+  CODIGO_INVALIDO: 400,
   NAO_AUTENTICADO: 401,
   CREDENCIAIS_INVALIDAS: 401,
   TOKEN_INVALIDO: 401,

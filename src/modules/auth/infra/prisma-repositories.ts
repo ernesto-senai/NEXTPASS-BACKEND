@@ -1,5 +1,9 @@
 import type { PrismaClient } from "../../../generated/prisma/client.ts";
-import type { ContaRepository, RefreshTokenRepository } from "../domain/sessao.ts";
+import type {
+  CodigoDeSenhaRepository,
+  ContaRepository,
+  RefreshTokenRepository,
+} from "../domain/sessao.ts";
 
 const camposConta = { id: true, nome: true, tipo: true, status: true, senhaHash: true } as const;
 
@@ -7,6 +11,29 @@ export function criarContaRepositoryPrisma(prisma: PrismaClient): ContaRepositor
   return {
     buscarPorEmail: (email) => prisma.usuario.findUnique({ where: { email }, select: camposConta }),
     buscarPorId: (id) => prisma.usuario.findUnique({ where: { id }, select: camposConta }),
+    atualizarSenha: async (id, senhaHash) => {
+      await prisma.usuario.update({ where: { id }, data: { senhaHash } });
+    },
+  };
+}
+
+export function criarCodigoDeSenhaRepositoryPrisma(prisma: PrismaClient): CodigoDeSenhaRepository {
+  return {
+    substituir: async ({ usuarioId, tokenHash, expiraEm }) => {
+      await prisma.$transaction([
+        prisma.token.deleteMany({ where: { usuarioId, tipo: "REDEFINIR_SENHA" } }),
+        prisma.token.create({ data: { usuarioId, tokenHash, expiraEm, tipo: "REDEFINIR_SENHA" } }),
+      ]);
+    },
+
+    // UPDATE condicional: o código vale uma vez só.
+    usar: async (tokenHash, agora) => {
+      const { count } = await prisma.token.updateMany({
+        where: { tokenHash, tipo: "REDEFINIR_SENHA", usadoEm: null, expiraEm: { gt: agora } },
+        data: { usadoEm: agora },
+      });
+      return count > 0;
+    },
   };
 }
 

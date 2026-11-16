@@ -34,6 +34,15 @@ export interface EmissorTokens {
 export interface ContaRepository {
   buscarPorEmail(email: string): Promise<Conta | null>;
   buscarPorId(id: string): Promise<Conta | null>;
+  atualizarSenha(id: string, senhaHash: string): Promise<void>;
+}
+
+// RF-05: códigos de nova senha, também só como hash (tabela Token, tipo REDEFINIR_SENHA).
+export interface CodigoDeSenhaRepository {
+  // Guarda o código novo e apaga os anteriores do usuário.
+  substituir(dados: { usuarioId: string; tokenHash: string; expiraEm: Date }): Promise<void>;
+  // Gasta o código se ele vale; false se não existe, venceu ou já foi usado.
+  usar(tokenHash: string, agora: Date): Promise<boolean>;
 }
 
 export interface RefreshTokenSalvo {

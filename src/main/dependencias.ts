@@ -8,8 +8,13 @@ import { criarAtletaRepositoryPrisma } from "../modules/atletas/infra/prisma-atl
 import { criarEmitirSessao } from "../modules/auth/application/emitir-sessao.ts";
 import { criarEncerrarSessao } from "../modules/auth/application/encerrar-sessao.ts";
 import { criarFazerLogin } from "../modules/auth/application/fazer-login.ts";
+import {
+  criarPedirNovaSenha,
+  criarRedefinirSenha,
+} from "../modules/auth/application/nova-senha.ts";
 import { criarRenovarSessao } from "../modules/auth/application/renovar-sessao.ts";
 import {
+  type CodigoDeSenhaRepository,
   type ContaRepository,
   DURACAO_SESSAO_MS,
   type EmissorTokens,
@@ -19,6 +24,7 @@ import {
 import type { AuthCasosDeUso } from "../modules/auth/http/auth.routes.ts";
 import { criarEmissorTokens } from "../modules/auth/infra/emissor-tokens.ts";
 import {
+  criarCodigoDeSenhaRepositoryPrisma,
   criarContaRepositoryPrisma,
   criarRefreshTokenRepositoryPrisma,
 } from "../modules/auth/infra/prisma-repositories.ts";
@@ -121,7 +127,7 @@ import type { Correio } from "../shared/domain/correio.ts";
 import type { Hasher } from "../shared/domain/hasher.ts";
 import { exigirOlheiroVerificado } from "../shared/http/middlewares/authorize.ts";
 import { prisma } from "../shared/infra/database/prisma.ts";
-import { criarCorreioConsole } from "../shared/infra/mail/correio-console.ts";
+import { criarCorreioDoAmbiente } from "../shared/infra/mail/correio-do-ambiente.ts";
 import { criarBcryptHasher } from "../shared/infra/security/bcrypt-hasher.ts";
 import { criarArmazenamentoDoAmbiente } from "../shared/infra/storage/armazenamento-do-ambiente.ts";
 
@@ -143,6 +149,7 @@ export interface Dependencias {
 export interface Adaptadores {
   contas: ContaRepository;
   refreshTokens: RefreshTokenRepository;
+  codigosDeSenha: CodigoDeSenhaRepository;
   usuarios: UsuarioRepository;
   perfis: PerfilRepository;
   avaliacoes: AvaliacaoRepository;
@@ -178,6 +185,8 @@ export function montarDependencias(adaptadores: Adaptadores): Dependencias {
       fazerLogin: criarFazerLogin({ ...adaptadores, emitirSessao }),
       renovarSessao: criarRenovarSessao({ ...adaptadores, emitirSessao }),
       encerrarSessao: criarEncerrarSessao(adaptadores),
+      pedirNovaSenha: criarPedirNovaSenha(adaptadores),
+      redefinirSenha: criarRedefinirSenha(adaptadores),
     },
     usuarios: {
       cadastrarAtleta: criarCadastrarAtleta(adaptadores),
@@ -256,6 +265,7 @@ export function criarDependencias(): Dependencias {
   return montarDependencias({
     contas: criarContaRepositoryPrisma(prisma),
     refreshTokens: criarRefreshTokenRepositoryPrisma(prisma),
+    codigosDeSenha: criarCodigoDeSenhaRepositoryPrisma(prisma),
     usuarios: criarUsuarioRepositoryPrisma(prisma),
     perfis: criarPerfilRepositoryPrisma(prisma),
     avaliacoes: criarAvaliacaoRepositoryPrisma(prisma),
@@ -269,7 +279,7 @@ export function criarDependencias(): Dependencias {
     denuncias: criarDenunciaRepositoryPrisma(prisma),
     olheiroVerificado: criarConsultaOlheiroVerificado(prisma),
     armazenamento: criarArmazenamentoDoAmbiente(),
-    correio: criarCorreioConsole(),
+    correio: criarCorreioDoAmbiente(),
     urlDoApp: env.APP_URL,
     hasher: criarBcryptHasher(),
     tokens: criarEmissorTokens({

@@ -30,3 +30,10 @@ services:
         sync: false
       - key: S3_PUBLIC_URL
         sync: false
+      # "brevo" para mandar e-mails de verdade; sem valor, os e-mails aparecem em Logs.
+      - key: EMAIL_DRIVER
+        sync: false
+      - key: BREVO_API_KEY
+        sync: false
+      - key: EMAIL_FROM
+        sync: false
